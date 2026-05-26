@@ -27,13 +27,27 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
    - Reason: requires physical operator action and disk/bootloader mutation.
    - Status: held.
 
+## Fixed in Loop 2
+
+1. `LANTERN-OS-WINDOWS-001`: Convert installed Windows shortcut bundle into a
+   reproducible script.
+   - Fix: Created `scripts/Invoke-WindowsSurfaceSetup.ps1` for reproducible Windows surface setup.
+   - Status: fixed.
+
+2. `LANTERN-OS-DUALBOOT-001`: Create complete dual boot installer bundle.
+   - Fix: Created `dual-boot/` directory with:
+     - INSTALL-CHECKLIST.md (step-by-step operator guide)
+     - Test-DualBootReadiness.ps1 (pre-flight validation)
+     - HARDWARE-ASSUMPTIONS.md (compatibility reference)
+     - ROLLBACK-GUIDE.md (recovery procedures)
+     - NIXOS-CONFIGS.md (config usage guide)
+     - README.md (overview and structure)
+   - Status: fixed.
+
 ## Open
 
 1. `LANTERN-OS-PROMOTE-001`: Promote selected COMET LEAP artifacts into
    `artifacts/` after operator approval.
    - Status: candidate.
-
-2. `LANTERN-OS-WINDOWS-001`: Convert installed Windows shortcut bundle into a
-   reproducible script.
-   - Status: candidate.
+   - Next: Review artifacts using Innovator Evidence Method.
 
