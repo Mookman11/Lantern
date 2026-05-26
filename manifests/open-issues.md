@@ -51,3 +51,25 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
    - Status: candidate.
    - Next: Review artifacts using Innovator Evidence Method.
 
+## Fixed in Loop 3
+
+1. `LANTERN-OS-REMOTE-001`: Revenue report still said the remote was not
+   configured.
+   - Fix: updated report source to record the live pushed Lantern OS remote.
+   - Status: fixed.
+
+2. `LANTERN-OS-TOKEN-001`: Offline/local/server-farm tokens were not separated
+   strongly enough from cloud-metered token burn.
+   - Fix: added the Foundry offline-token rule and removed "Lite" language from
+     local/offline token cost framing.
+   - Status: fixed.
+
+3. `LANTERN-OS-FOUNDRY-001`: Shareholder repo universe was not centralized.
+   - Fix: added `manifests/foundry-shareholder-repos.md`.
+   - Status: fixed.
+
+4. `LANTERN-OS-PHONE-001`: iPhone and second-phone dual-boot language needed a
+   safer boundary.
+   - Fix: treat phones as Foundry edge nodes first; hold true phone dual boot
+     until exact device, backup, boot path, risk, and rollback are verified.
+   - Status: fixed.

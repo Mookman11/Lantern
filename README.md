@@ -16,6 +16,11 @@ v1.0.0 line is ready. Until then, source repos remain authoritative:
 - `C:\tmp\human-flourishing-frameworks-scan`
 - `C:\Users\alexp\Documents\gm-agent-orchestrator`
 
+Remote control plane: `https://github.com/alex-place/lantern-os`
+
+Shareholder/repo consolidation map:
+`manifests/foundry-shareholder-repos.md`
+
 ## Release Rule
 
 Nothing becomes v1.0.0 here merely because it exists elsewhere. Promotion
@@ -41,6 +46,8 @@ explicitly marked held by the operator.
 - No unreviewed generated artifact dump.
 - No claim that v1.0.0 is ready before the operator says so.
 - No skeleton-only milestones.
+- No treating offline/local/server-farm Foundry tokens as cloud-metered,
+  "Lite", or per-token rated.
 
 ## First Command
 
@@ -49,4 +56,3 @@ Run the convergence loop:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LanternConvergenceLoop.ps1
 ```
-

@@ -15,8 +15,9 @@ searches, token-cost claims, and revenue projections without enough independent
 evidence classes. This version raises confidence only where the evidence is
 strong:
 
-- **High confidence:** token unit costs, repo artifact existence, current dirty
-  repo state, service streams that can be sold manually now.
+- **High confidence:** cloud token unit costs, offline/server-farm Foundry
+  token policy, repo artifact existence, current dirty repo state, service
+  streams that can be sold manually now.
 - **Medium confidence:** 30-90 day revenue targets from founder-led service
   packaging.
 - **Low confidence:** scaled 12-month revenue without live conversion data.
@@ -38,6 +39,7 @@ a first revenue stream.
 | Johns Hopkins homeschool growth 2024-2025, `https://education.jhu.edu/edpolicy/policy-research-initiatives/homeschool-hub/homeschool-growth-2024-2025/` | Directional homeschool growth | Medium |
 | AARP 2024 tech trends 50+, `https://www.aarp.org/pri/topics/technology/internet-media-devices/2024-technology-trends-older-adults.html` | Older-adult tech adoption and AI skepticism | Medium |
 | AARP telehealth 50+, `https://www.aarp.org/pri/topics/health/coverage-access/telehealth-health-care/` | Caregiver/health-adjacent adoption surface | Medium |
+| Apple Platform Security, `https://support.apple.com/guide/security/boot-process-for-iphone-and-ipad-devices-secb3000f149/web` | iPhone/iPad secure boot boundary for phone dual-boot claims | High |
 
 ## Method Upgrade
 
@@ -61,6 +63,15 @@ New method:
 
 ## Token Burn Cost Model
 
+Admin rule: **offline-only/local/server-farm Foundry tokens are unmetered
+internal capacity**. Do not label local inference as "Lite", do not rate it per
+token, and do not present it as a scarce customer billable unless an external
+provider, rented GPU, or hardware lease is actually charging for the work.
+Foundry capacity is bounded by owned hardware, queue time, thermals, power,
+storage, network, maintenance, and operator policy, not vendor token price.
+
+The tables below are only for cloud/API escalation cost.
+
 Assumptions per active family per month:
 
 - 200 short local chats.
@@ -83,14 +94,14 @@ Assumptions per active family per month:
 
 ### Token Burn By Customer Count
 
-| Families | Lite Cost / Mo | Balanced Cost / Mo | Premium Review Cost / Mo |
+| Families | Local/Server-Farm API Cost / Mo | Balanced Cloud Cost / Mo | Premium Cloud Review Cost / Mo |
 |---:|---:|---:|---:|
-| 1 | $0.01 | $0.07 | $0.60 |
-| 10 | $0.14 | $0.68 | $6.00 |
-| 50 | $0.68 | $3.40 | $30.00 |
-| 100 | $1.36 | $6.80 | $60.00 |
-| 500 | $6.80 | $34.00 | $300.00 |
-| 1,000 | $13.60 | $68.00 | $600.00 |
+| 1 | $0.00 API cost | $0.07 | $0.60 |
+| 10 | $0.00 API cost | $0.68 | $6.00 |
+| 50 | $0.00 API cost | $3.40 | $30.00 |
+| 100 | $0.00 API cost | $6.80 | $60.00 |
+| 500 | $0.00 API cost | $34.00 | $300.00 |
+| 1,000 | $0.00 API cost | $68.00 | $600.00 |
 
 Conclusion: **token burn is not the near-term threat. Human support time,
 installation friction, trust, and distribution are the burn risks.**
@@ -140,7 +151,7 @@ Confidence scale:
 |---|---|---:|---|
 | Lantern OS repo exists | `C:\tmp\lantern-os` git repo | 99 | Continue here |
 | Source repos are dirty | Local git status showed HFF and orchestrator changes | 95 | Do not reset or sync |
-| Remote URL not configured locally | `git remote -v` returned no remote | 95 | Add link in PDF, set remote only on approval |
+| Lantern OS remote configured and pushed | `origin` points to `https://github.com/alex-place/lantern-os.git` | 99 | Keep PDF and manifests linked to remote |
 
 ### 3. Windows Surface Revenue
 
@@ -244,6 +255,8 @@ Do not launch a crypto token now.
 
 If "token" means LLM token burn:
 
+- treat offline/local/server-farm Foundry tokens as unmetered internal capacity;
+- remove "Lite" and per-token rating language from local/offline offers;
 - use local-first routing;
 - batch non-urgent synthesis;
 - cache system prompts;
@@ -269,4 +282,3 @@ Week 4: subscription checkout only if manual buyers exist
 
 This keeps owner earnings positive, avoids token theater, and turns the existing
 COMET LEAP artifacts into cashable services before scaling software.
-
