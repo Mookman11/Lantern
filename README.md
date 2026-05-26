@@ -19,15 +19,12 @@ v1.0.0 line is ready. Until then, source repos remain authoritative:
 ## Release Rule
 
 Nothing becomes v1.0.0 here merely because it exists elsewhere. Promotion
-requires the Innovator evidence method:
+requires the Lantern OS convergence loop in
+`docs/CONVERGENCE-LOOP.md`.
 
-1. Claim is stated.
-2. Source or repo evidence is named.
-3. Capability and boundary are declared.
-4. Risk and rollback path are known.
-5. Validation evidence is attached.
-6. Operator approval is explicit.
-7. Artifact is promoted into this repo.
+Before adding new surfaces, run the loop and fix the first 2-4 open issues it
+finds. Expansion is allowed only after the leading blockers are handled or
+explicitly marked held by the operator.
 
 ## Initial Surfaces
 
@@ -43,4 +40,13 @@ requires the Innovator evidence method:
 - No partition or disk mutation scripts.
 - No unreviewed generated artifact dump.
 - No claim that v1.0.0 is ready before the operator says so.
+- No skeleton-only milestones.
+
+## First Command
+
+Run the convergence loop:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LanternConvergenceLoop.ps1
+```
 

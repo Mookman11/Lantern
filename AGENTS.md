@@ -10,6 +10,9 @@ This repository is the clean Lantern OS v1.0.0 staging repo.
 - Do not mutate boot configuration, partitions, firmware boot order, or disks.
 - Do not claim v1.0.0 readiness without operator approval.
 - Use the Innovator evidence method for promotion decisions.
+- Do not stop at skeletons. If a loop finds actionable local issues, fix the
+  first 2-4 before starting new expansion work.
+- Retire deprecated surfaces as an explicit convergence step.
 
 ## Source Repos
 
@@ -30,7 +33,17 @@ An artifact can move into this repo when it has:
 - blockers and rollback notes;
 - operator approval status.
 
+## Required Loop
+
+Before meaningful work, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LanternConvergenceLoop.ps1
+```
+
+Then handle the first 2-4 reported issues in priority order. If an issue cannot
+be fixed safely, mark it held in `manifests/open-issues.md` with the reason.
+
 ## Branching
 
 Use `codex/` branch names for agent work unless the operator asks otherwise.
-
