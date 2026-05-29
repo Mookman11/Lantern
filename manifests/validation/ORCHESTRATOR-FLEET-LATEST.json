@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-05-28T22:22:06+00:00",
+  "orchestratorRepo": {
+    "path": "C:\\Users\\alexp\\Documents\\gm-agent-orchestrator",
+    "available": false,
+    "checkedPaths": [
+      "/workspace/gm-agent-orchestrator",
+      "/workspace/orchestrator",
+      "/tmp/gm-agent-orchestrator",
+      "/root/Documents/gm-agent-orchestrator",
+      "/mnt/c/Users/alexp/Documents/gm-agent-orchestrator"
+    ],
+    "sourceBoundary": "private orchestrator was not available in this execution environment; no dirty worktree state was imported"
+  },
+  "mcpBaseUrl": "http://127.0.0.1:8787",
+  "ringSteps": 12,
+  "ringSlots": 36,
+  "poolTarget": 64,
+  "activeWorkers": null,
+  "idleWorkers": null,
+  "queuedJobs": null,
+  "failedWorkers": null,
+  "toolCount": null,
+  "mcpToolsVisible": false,
+  "secretsBoundaryReviewed": true,
+  "privateIpBoundaryReviewed": true,
+  "claimBoundary": "held_private_orchestrator_unavailable_no_live_worker_proof",
+  "validationNotes": [
+    "Design counts are taken from the convergence fleet contract: 12 ring steps, 36 ring slots, 64 pool target.",
+    "Live worker, queue, failure, and MCP tool counts remain null until the private orchestrator is inspected on the operator machine.",
+    "The MCP base URL is loopback-only and was not reachable from this environment during receipt creation.",
+    "Do not use this receipt to claim that 36 agents or 64 workers are actively running."
+  ]
+}

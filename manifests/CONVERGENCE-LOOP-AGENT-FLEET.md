@@ -7,7 +7,7 @@ Date: 2026-05-28
 
 Lantern convergence-agent mode runs the existing 12-step convergence loop as a 36-agent matrix.
 
-The 36-agent matrix is a planning, dispatch, and receipt contract. It does not by itself prove that 36 live worker processes are running. Live-worker claims require a current local orchestrator count report.
+The 36-agent matrix is a planning, dispatch, and receipt contract. It does not by itself prove that 36 live worker processes are running. Live-worker claims require the live-fleet proof gate at `manifests/validation/ORCHESTRATOR-FLEET-LATEST.json` to contain current local orchestrator counts.
 
 ## Fleet Formula
 
@@ -79,7 +79,7 @@ Allowed claims:
 - `expectedRingSlots = 36`
 - `poolTarget = 64`
 - `ringMode = designed`
-- `liveWorkerProof = held until a local orchestrator count report exists`
+- `liveWorkerProof = held until manifests/validation/ORCHESTRATOR-FLEET-LATEST.json contains current local orchestrator counts`
 
 Not allowed without fresh local evidence:
 
@@ -88,6 +88,18 @@ Not allowed without fresh local evidence:
 - claiming MCP tools exist from advertised capability alone;
 - public release without the review gate;
 - v1.0.0 readiness without operator approval and convergence evidence.
+
+## Live-Fleet Proof Gate
+
+The live-fleet proof gate is:
+
+```text
+manifests/validation/ORCHESTRATOR-FLEET-LATEST.json
+```
+
+This receipt is the only live-worker proof gate for the convergence fleet. It must be refreshed from the private orchestrator when that repo and its loopback MCP endpoint are available. If the private orchestrator is unavailable, the receipt may record design counts, but `activeWorkers`, `idleWorkers`, `queuedJobs`, `failedWorkers`, and `toolCount` stay `null`, `mcpToolsVisible` stays `false`, and the claim boundary stays held.
+
+Passing the design-contract validator still proves only the static 12-step / 36-slot / 64-target contract. It does not open the live-fleet gate unless `ORCHESTRATOR-FLEET-LATEST.json` contains current local counts.
 
 ## Validation
 
