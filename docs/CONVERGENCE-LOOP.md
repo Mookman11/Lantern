@@ -24,6 +24,22 @@ unless the operator explicitly holds them.
 11. Record evidence and remaining blockers.
 12. Promote, hold, or reject artifacts.
 
+
+## 4-Way Branch And Worktree Convergence
+
+When the objective is to fix branches, PRs, and dirty worktrees, use this
+priority order before expansion work:
+
+- First: newest open issues with repo evidence.
+- Second: PR refs and PR metadata visible to the current checkout.
+- Third: newest local or remote branches by commit date.
+- Fourth: dirty worktrees and source repos, treated as evidence before mutation.
+
+Cloud/Linux agents can run `scripts/Invoke-LanternConvergenceLoop.py` to mirror
+the PowerShell loop and write a Git survey receipt. The survey is read-only: it
+must not reset, stash, force-push, or import dirty source repos without an
+operator gate.
+
 ## Definitions
 
 Actionable issue:

@@ -211,10 +211,17 @@ artifacts/COMET-LEAP-TOKEN-BURN-REVENUE-CONVERGENCE-v1.pdf
 
 ## First Command
 
-Run the convergence loop:
+Run the convergence loop on the Windows operator machine:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LanternConvergenceLoop.ps1
+```
+
+Run the cross-platform convergence loop in cloud/Linux agents when PowerShell is
+not available:
+
+```bash
+python3 scripts/Invoke-LanternConvergenceLoop.py --cloud-virtualization --write-json manifests/validation/CONVERGENCE-LOOP-LATEST.json
 ```
 
 Validate the convergence fleet count contract:

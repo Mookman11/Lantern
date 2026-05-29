@@ -264,3 +264,19 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
 1. `LANTERN-OS-CODEX-REMOTE-001`: Codex mobile "Waiting for desktop" failures were not captured as a diagnostic split.
    - Fix: added `docs/CODEX-WAITING-FOR-DESKTOP-TROUBLESHOOTING.md` and linked it from `docs/MCP-CONNECTOR.md`.
    - Status: fixed as a documentation/diagnostic pass; local app patching remains held pending operator-machine evidence and approval.
+
+## Fixed in 4-Way Branch and Worktree Convergence Pass
+
+1. `LANTERN-OS-CLOUD-LOOP-001`: Linux/cloud agents could not run the required
+   PowerShell convergence loop before meaningful work.
+   - Fix: added `scripts/Invoke-LanternConvergenceLoop.py` as a cross-platform
+     mirror of the required loop with a cloud virtualization mode.
+   - Status: fixed for repo invariants; Windows local runtime remains held for
+     operator-machine validation.
+
+2. `LANTERN-OS-GIT-4WAY-001`: Branch, PR, issue, and dirty-worktree convergence
+   lacked one public-safe 4-way priority receipt.
+   - Fix: added `manifests/BRANCH-WORKTREE-4WAY-CONVERGENCE-2026-05-29.md` and
+     `manifests/validation/CONVERGENCE-LOOP-LATEST.json`.
+   - Status: fixed as read-only survey and planning evidence; no force-push,
+     reset, stash, or source-repo import was performed.

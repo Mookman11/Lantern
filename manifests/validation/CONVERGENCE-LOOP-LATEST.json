@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-05-29T18:30:06.029111+00:00",
+  "root": "/workspace/lantern-os",
+  "mode": "cloud_virtualization",
+  "method": "Lantern OS 12-step convergence loop",
+  "designedRingSlots": 36,
+  "elasticPoolTarget": 64,
+  "fourWayPriority": [
+    "newest open issues",
+    "PR refs",
+    "newest branches",
+    "dirty worktrees"
+  ],
+  "fleetClaimBoundary": "design contract only; live worker counts require local orchestrator evidence",
+  "fixWindow": 4,
+  "issueCount": 0,
+  "leadingIssues": [],
+  "held": [
+    {
+      "id": "LANTERN-OS-BOOT-001",
+      "severity": "blocked",
+      "summary": "Actual dual boot installation requires physical operator action.",
+      "fix": "Keep held; do not automate disk, BCD, firmware, or bootloader mutation."
+    },
+    {
+      "id": "LANTERN-OS-CLOUD-LOCAL-001",
+      "severity": "held",
+      "summary": "Cloud/Linux agents cannot see local-only MCP endpoints, dirty source worktrees, Windows Store apps, or private disks.",
+      "fix": "Validate repo invariants here; validate local runtime through Start-LanternLocalControls.ps1 on the operator machine."
+    }
+  ],
+  "sourceRepos": [
+    {
+      "repo": "C:\\tmp\\human-flourishing-frameworks-scan",
+      "exists": false,
+      "dirty": false,
+      "changedCount": 0,
+      "state": "cloud_metadata_only",
+      "boundary": "Local source tree is not visible here; inspect locally before mutation."
+    },
+    {
+      "repo": "C:\\Users\\alexp\\Documents\\gm-agent-orchestrator",
+      "exists": false,
+      "dirty": false,
+      "changedCount": 0,
+      "state": "cloud_metadata_only",
+      "boundary": "Local source tree is not visible here; inspect locally before mutation."
+    }
+  ],
+  "gitSurvey": {
+    "status": "## codex/4way-branch-worktree-convergence\n M README.md\n M docs/CONVERGENCE-LOOP.md\n M manifests/open-issues.md\n M manifests/validation/CONVERGENCE-FLEET-LATEST.json\n M manifests/validation/LANTERN-GARAGE-APP-LATEST.json\n?? manifests/BRANCH-WORKTREE-4WAY-CONVERGENCE-2026-05-29.md\n?? manifests/validation/CONVERGENCE-LOOP-LATEST.json\n?? scripts/Invoke-LanternConvergenceLoop.py",
+    "dirtyCount": 8,
+    "dirtyEntries": [
+      " M README.md",
+      " M docs/CONVERGENCE-LOOP.md",
+      " M manifests/open-issues.md",
+      " M manifests/validation/CONVERGENCE-FLEET-LATEST.json",
+      " M manifests/validation/LANTERN-GARAGE-APP-LATEST.json",
+      "?? manifests/BRANCH-WORKTREE-4WAY-CONVERGENCE-2026-05-29.md",
+      "?? manifests/validation/CONVERGENCE-LOOP-LATEST.json",
+      "?? scripts/Invoke-LanternConvergenceLoop.py"
+    ],
+    "branchesNewestFirst": [
+      "* codex/4way-branch-worktree-convergence 0756c9c Bump garage cloud truth deploy marker",
+      "work                                   0756c9c Bump garage cloud truth deploy marker"
+    ],
+    "branchCountObserved": 2,
+    "prRefsNewestFirst": [],
+    "prRefCountObserved": 0,
+    "worktrees": [
+      {
+        "worktree": "/workspace/lantern-os",
+        "HEAD": "0756c9c177c25359b0e8212a24c995583e358156",
+        "branch": "refs/heads/codex/4way-branch-worktree-convergence"
+      }
+    ],
+    "worktreeCountObserved": 1,
+    "remotes": [],
+    "priorityOrder": [
+      "dirty worktrees",
+      "PR refs",
+      "newest branches",
+      "remotes / source repos"
+    ],
+    "mutationBoundary": "survey only; no branch, remote, or worktree mutation without operator gate"
+  },
+  "nextAction": "Cloud repo invariants passed. Run local controls on the operator machine before MCP/local runtime mutation."
+}
