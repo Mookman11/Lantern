@@ -13,6 +13,9 @@ const checks = [
   ["/api/readiness", (x) => typeof x.readyForPrep === "boolean"],
   ["/api/mining-lab", (x) => x.ready === true && x.shortcutRule === "single_lantern_shortcut"],
   ["/api/cloud-mirrors", (x) => x.deployProvider === "Render" && x.cloudMirrorCount >= 2],
+  ["/api/access-model", (x) => x.audienceTarget === "dozens_of_users" && Array.isArray(x.tiers) && x.tiers.some((tier) => tier.id === "founder" && tier.founderOnly === true)],
+  ["/api/action-capabilities", (x) => x.actions && x.actions.dispatchAll && x.actions.dispatchAll.enabled === false],
+  ["/api/operator-feedback", (x) => Array.isArray(x.feedback) && x.feedback.some((item) => item.id === "OPERATOR-BUTTON-TRUTH")],
   ["/api/rag-cache", (x) => Array.isArray(x)],
 ];
 
