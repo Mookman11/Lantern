@@ -264,3 +264,41 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
 1. `LANTERN-OS-CODEX-REMOTE-001`: Codex mobile "Waiting for desktop" failures were not captured as a diagnostic split.
    - Fix: added `docs/CODEX-WAITING-FOR-DESKTOP-TROUBLESHOOTING.md` and linked it from `docs/MCP-CONNECTOR.md`.
    - Status: fixed as a documentation/diagnostic pass; local app patching remains held pending operator-machine evidence and approval.
+
+## Fixed in Dashboard Product Lane Pass
+
+1. `DASHBOARD-JS-001`: Garage dashboard JavaScript was truncated before quick replies, form wiring, refresh controls, and startup initialization completed.
+   - Fix: rebuilt `apps/lantern-garage/public/app.js` with complete chat, RAG intake, Operator Lane, validator, fleet, access-lane, auto-update, and refresh wiring.
+   - Status: fixed.
+
+2. `DASHBOARD-ACCESS-001`: The dashboard did not clearly separate public, signed-in, paid, and founder-only features for dozens of early users.
+   - Fix: added a public access contract endpoint and first-screen access lane UI for public, `$0 Auth`, `$20 Auth`, `$200 Auth`, and Founder controls.
+   - Status: fixed.
+
+3. `DASHBOARD-LINKS-001`: Always-on URLs and validation affordances were not visible enough from the first screen.
+   - Fix: added an always-on link dock for health, status, access model, mirrors, readiness gates, evidence method, open issues, and cloud mirror receipts.
+   - Status: fixed.
+
+## Held in Dashboard Product Lane Pass
+
+1. `CONVERGENCE-LOOP-LINUX-001`: Required PowerShell convergence loop could not run in this Linux container because neither `powershell` nor `pwsh` is installed.
+   - Reason: environment toolchain limitation; local operator machine or CI image with PowerShell must run `scripts/Invoke-LanternConvergenceLoop.ps1`.
+   - Status: held; dashboard validators now show the convergence loop as held instead of pretending live proof.
+
+2. `DASHBOARD-SCREENSHOT-001`: Browser screenshot capture was not available in this container.
+   - Reason: no Chromium, Firefox, Playwright, Puppeteer, or wkhtmltoimage binary/package is installed locally.
+   - Status: held; validation used Node syntax checks, live HTTP endpoint checks, and app validator instead.
+
+## Fixed in Feedback Memory Product Pass
+
+1. `DASHBOARD-MEMORY-001`: The previous dashboard pass did not visibly use the operator feedback stored in local memories.
+   - Fix: added `/api/operator-feedback` and a Memory Feedback dashboard panel that summarizes the saved button/fake and Tony Garage/Orion notes without exposing private details.
+   - Status: fixed.
+
+2. `DASHBOARD-FAKE-BUTTON-001`: The dashboard still blurred real buttons, live links, local-only actions, and founder-held controls.
+   - Fix: added `/api/action-capabilities`, first-screen Control Truth cards, `data-control-kind` labels, and disabled held PowerShell/local controls when the capability is missing.
+   - Status: fixed.
+
+3. `DASHBOARD-POWERSHELL-001`: Local action routes attempted PowerShell without first proving the command exists.
+   - Fix: added PowerShell command detection and a safe held response when PowerShell is unavailable.
+   - Status: fixed.

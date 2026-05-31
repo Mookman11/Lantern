@@ -320,8 +320,18 @@ Default boot mutation: ${house.windowsSurface.defaultBootMutation}
 
 function runPowerShell(scriptRelativePath, args = []) {
   return new Promise((resolve) => {
+    const powerShellCommand = getPowerShellCommand();
+    if (!powerShellCommand) {
+      resolve({
+        code: 2,
+        stdout: "",
+        stderr: "PowerShell is not installed in this environment; run this action on the operator machine.",
+      });
+      return;
+    }
+
     const scriptPath = path.join(repoRoot, scriptRelativePath);
-    const child = spawn("powershell.exe", [
+    const child = spawn(powerShellCommand, [
       "-NoProfile",
       "-ExecutionPolicy",
       "Bypass",
@@ -334,6 +344,7 @@ function runPowerShell(scriptRelativePath, args = []) {
     let stderr = "";
     child.stdout.on("data", (data) => { stdout += data.toString(); });
     child.stderr.on("data", (data) => { stderr += data.toString(); });
+    child.on("error", (error) => resolve({ code: 2, stdout, stderr: `${stderr}${error.message}` }));
     child.on("close", (code) => resolve({ code, stdout, stderr }));
   });
 }
@@ -572,6 +583,138 @@ function parseMirrorEnv() {
     }));
 }
 
+
+
+function commandExists(command) {
+  const probe = process.platform === "win32" ? "where" : "which";
+  const result = spawnSync(probe, [command], { stdio: "ignore" });
+  return result.status === 0;
+}
+
+function getPowerShellCommand() {
+  const candidates = process.platform === "win32"
+    ? ["powershell.exe", "pwsh.exe", "powershell", "pwsh"]
+    : ["pwsh", "powershell"];
+  return candidates.find(commandExists) || null;
+}
+
+function getActionCapabilities() {
+  const powerShellCommand = getPowerShellCommand();
+  const powerShellReady = Boolean(powerShellCommand);
+  return {
+    generatedAt: new Date().toISOString(),
+    mode: "local",
+    powerShellCommand,
+    actions: {
+      refresh: { enabled: true, kind: "real-action", reason: "GET routes are available in the Node app." },
+      flatRagIngest: { enabled: true, kind: "real-action", reason: "Writes the local Flat RAG manifest only; no repo deletion." },
+      notes: { enabled: true, kind: "real-action", reason: "Appends operator notes to data/operator-notes/notes.jsonl." },
+      chat: { enabled: true, kind: "real-action", reason: "Appends local chat memory to data/conversations/garage-conversations.jsonl." },
+      runLoop: { enabled: powerShellReady, kind: powerShellReady ? "real-action" : "held-action", reason: powerShellReady ? `PowerShell available via ${powerShellCommand}.` : "Held: PowerShell is not installed in this environment." },
+      localControls: { enabled: powerShellReady, kind: powerShellReady ? "real-action" : "held-action", reason: powerShellReady ? `PowerShell available via ${powerShellCommand}.` : "Held: local controls require PowerShell on the operator machine." },
+      dispatchAll: { enabled: false, kind: "founder-held", reason: "Held until founder auth, MCP canary, and operator approval are present." }
+    },
+    summary: {
+      real: ["Refresh Status", "Ingest Repos", "Auto Update", "+ Note", "Chat send", "RAG intake"],
+      links: ["Health", "Status JSON", "Access Model", "Mirror JSON", "Readiness Gates", "Evidence Method", "Open Issues"],
+      held: powerShellReady
+        ? ["Dispatch All stays founder-held until MCP canary and auth proof."]
+        : ["Converge Loop held: PowerShell missing.", "Local Controls held: operator-machine PowerShell required.", "Dispatch All founder-held until MCP canary and auth proof."]
+    }
+  };
+}
+
+function getOperatorFeedbackMemory() {
+  const notes = readJsonl(path.relative(repoRoot, operatorNotesPath), 50).filter((note) => !note.parseError);
+  const feedback = [];
+  for (const note of notes) {
+    const text = String(note.text || "").trim();
+    const lower = text.toLowerCase();
+    if (lower.includes("button") || lower.includes("fake")) {
+      feedback.push({
+        id: "OPERATOR-BUTTON-TRUTH",
+        priority: note.priority || "P1",
+        source: path.relative(repoRoot, operatorNotesPath),
+        feedback: text,
+        appliedAs: "Every first-screen control is classified as real-action, live-link, held-action, or founder-held; unavailable held buttons are disabled."
+      });
+    }
+    if (lower.includes("tony") || lower.includes("garage") || lower.includes("orion")) {
+      feedback.push({
+        id: "OPERATOR-ORION-GARAGE",
+        priority: note.priority || "P0",
+        source: path.relative(repoRoot, operatorNotesPath),
+        feedback: text,
+        appliedAs: "Dashboard keeps the limestone/grid Orion cockpit style, redirects retired Tony Garage, and shows one canonical local URL."
+      });
+    }
+  }
+  feedback.push({
+    id: "RESTART-EXTERNAL-MEMORY",
+    priority: "P1",
+    source: "data/context/RESTART-TEMPLATE-2026-05-29.md",
+    feedback: "Use external memory files and complete targeted dashboard integration before expanding.",
+    appliedAs: "Dashboard now exposes memory feedback and action capabilities as first-class API-backed panels."
+  });
+  return {
+    generatedAt: new Date().toISOString(),
+    feedback,
+    boundary: "Operator feedback memory is read from local notes and context receipts; private details are summarized, not exposed as secrets."
+  };
+}
+
+function getAccessModel() {
+  return {
+    generatedAt: new Date().toISOString(),
+    audienceTarget: "dozens_of_users",
+    activeUserSoftCap: 48,
+    authBoundary: "This is an access contract for the dashboard surface. Real identity, billing, and founder authorization must be wired before private or paid actions leave local mode.",
+    tiers: [
+      {
+        id: "public",
+        label: "Public",
+        priceUsdMonthly: null,
+        authRequired: false,
+        summary: "Always-on public proof, health checks, public reports, cloud mirrors, and safe documentation.",
+        features: ["/api/health", "/api/status", "public PDFs", "read-only readiness"]
+      },
+      {
+        id: "auth_0",
+        label: "$0 Auth",
+        priceUsdMonthly: 0,
+        authRequired: true,
+        summary: "Free signed-in workspace for saved notes, RAG intake, and user preference continuity.",
+        features: ["saved notes", "RAG intake", "workspace continuity"]
+      },
+      {
+        id: "auth_20",
+        label: "$20 Auth",
+        priceUsdMonthly: 20,
+        authRequired: true,
+        summary: "Supporter workspace for queue visibility, report packets, and a weekly operator digest.",
+        features: ["queue visibility", "report packets", "weekly digest"]
+      },
+      {
+        id: "auth_200",
+        label: "$200 Auth",
+        priceUsdMonthly: 200,
+        authRequired: true,
+        summary: "Pilot workspace for guided cleanup sessions, report review, and direct operator scheduling.",
+        features: ["pilot review", "cleanup session", "operator scheduling"]
+      },
+      {
+        id: "founder",
+        label: "Founder",
+        priceUsdMonthly: null,
+        authRequired: true,
+        founderOnly: true,
+        summary: "Founder-only controls for local dispatch, release promotion, secrets, billing setup, and boot-sensitive decisions.",
+        features: ["local controls", "agent dispatch", "release gates", "private receipts"]
+      }
+    ]
+  };
+}
+
 function getCloudMirrorStatus() {
   const manifest = readJson(path.relative(repoRoot, cloudMirrorsPath), {});
   const manifestMirrors = Array.isArray(manifest.cloudMirrors) ? manifest.cloudMirrors : [];
@@ -697,6 +840,21 @@ async function route(req, res) {
 
   if (url.pathname === "/api/mining-lab") {
     sendJson(res, getMiningLabStatus());
+    return;
+  }
+
+  if (url.pathname === "/api/action-capabilities") {
+    sendJson(res, getActionCapabilities());
+    return;
+  }
+
+  if (url.pathname === "/api/operator-feedback") {
+    sendJson(res, getOperatorFeedbackMemory());
+    return;
+  }
+
+  if (url.pathname === "/api/access-model") {
+    sendJson(res, getAccessModel());
     return;
   }
 
