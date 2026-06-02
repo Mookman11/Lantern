@@ -1,0 +1,93 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  # ── GitHub Pages ────────────────────────────────────────────────────────────
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build pages bundle
+        run: |
+          mkdir -p _site
+
+          # Copy surfaces (shareholder index, dashboards, etc.)
+          cp -r surfaces/. _site/
+
+          # Copy Dream Journal UI into /dream path
+          mkdir -p _site/dream
+          cp apps/lantern-garage/public/index.html _site/dream/index.html
+
+          # Root redirect → /dream
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Lantern OS — Dream Journal</title>
+            <meta http-equiv="refresh" content="0;url=/lantern-os/dream/">
+          </head>
+          <body>
+            <p>Redirecting to <a href="/lantern-os/dream/">Dream Journal</a>…</p>
+          </body>
+          </html>
+          HTML
+
+          echo "✓ Pages bundle ready"
+          ls -la _site/
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+
+  # ── Railway ─────────────────────────────────────────────────────────────────
+  deploy-railway:
+    name: Trigger Railway deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Railway deploy hook
+        if: ${{ secrets.RAILWAY_DEPLOY_HOOK != '' }}
+        run: |
+          echo "Triggering Railway deploy..."
+          curl -s -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK }}" \
+            --fail-with-body \
+            && echo "✓ Railway deploy triggered" \
+            || echo "⚠ Railway webhook returned error (non-fatal)"
+        continue-on-error: true
+
+      - name: Skip (no hook configured)
+        if: ${{ secrets.RAILWAY_DEPLOY_HOOK == '' }}
+        run: |
+          echo "⚠ RAILWAY_DEPLOY_HOOK secret not set."
+          echo "Railway auto-deploys via its GitHub integration when connected."
+          echo "Add secret RAILWAY_DEPLOY_HOOK to enable explicit webhook trigger."
+
+  # ── Summary ─────────────────────────────────────────────────────────────────
+  summary:
+    name: Deploy summary
+    needs: [deploy-pages, deploy-railway]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print deploy targets
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✓ GitHub Pages: https://alex-place.github.io/lantern-os/"
+          echo "✓ Dream Journal UI: https://alex-place.github.io/lantern-os/dream/"
+          echo "✓ Railway: connect at https://railway.app (auto-deploy from master)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
