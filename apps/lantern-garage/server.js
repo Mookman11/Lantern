@@ -300,6 +300,101 @@ function readRecentDreams(limit = 5) {
 }
 
 // ------------------------------------------------------------------
+// CSF Symbolic Preview — in-process analysis without spawning Python
+// ------------------------------------------------------------------
+
+const CSF_BUILTIN_ANCHORS = [
+  "Lantern", "Keystone", "Garden", "Table", "Return", "Convergence",
+  "CityOfDoors", "Sigil", "Founder", "Wish", "Anchor", "Door",
+  "Blinkbug", "Gage", "Xenon", "Fog", "Cloud", "Sea", "Dream",
+  "Mirror", "Reflection", "Light", "Path", "Threshold", "Crossing",
+  "FoundersWishDoor", "GagesWindowsXPDoor", "XenonDoor",
+  "SeaOfFogAndCloudsDoor", "ReturnDoor",
+  "Love", "Safety", "Truth", "Beauty", "Freedom", "Memory",
+  "QuantumDust", "Qutrit", "Delta", "Baseline", "ConvergencePass",
+  "Observation", "Sensor", "Drift", "Cluster", "Phase", "Amplitude",
+  "Vivid", "Strange", "Familiar", "Distant", "Near", "Holding",
+  "Protecting", "Building", "Becoming", "Waking", "Sleeping",
+];
+
+function generateCsfPreview(text, csfPath) {
+  const tokens = (text.match(/[A-Za-z_]+/g) || []);
+  const lowerTokens = tokens.map(t => t.toLowerCase());
+  const uniqueTokens = [...new Set(tokens)];
+
+  // Match symbolic anchors (case-insensitive)
+  const anchorLower = CSF_BUILTIN_ANCHORS.map(a => a.toLowerCase());
+  const matchedAnchors = CSF_BUILTIN_ANCHORS.filter(a =>
+    lowerTokens.includes(a.toLowerCase())
+  );
+  const anchorHits = matchedAnchors.map(a => ({
+    anchor: a,
+    count: lowerTokens.filter(t => t === a.toLowerCase()).length,
+  })).sort((a, b) => b.count - a.count);
+
+  // Token frequency for compression estimate
+  const freq = {};
+  for (const t of tokens) { freq[t] = (freq[t] || 0) + 1; }
+  const repeatedTokens = Object.entries(freq).filter(([, c]) => c >= 2).length;
+  const originalBytes = Buffer.byteLength(text, "utf-8");
+  const estimatedRatio = Math.min(0.95, (matchedAnchors.length * 0.02) + (repeatedTokens / uniqueTokens.length) * 0.5 + 0.15);
+
+  // Check for existing CSF file
+  let csfFile = null;
+  if (csfPath && fs.existsSync(csfPath)) {
+    const stat = fs.statSync(csfPath);
+    csfFile = {
+      exists: true,
+      bytes: stat.size,
+      actual_ratio: 1.0 - (stat.size / originalBytes),
+      modified: stat.mtime.toISOString(),
+    };
+  }
+
+  // Convergence signals: how many anchors are "stable" (appear 2+)
+  const converged = anchorHits.filter(a => a.count >= 2);
+  const drifting = anchorHits.filter(a => a.count === 1);
+
+  // Symbolic density: what fraction of tokens are known anchors
+  const anchorTokenCount = anchorHits.reduce((s, a) => s + a.count, 0);
+  const symbolicDensity = tokens.length > 0 ? anchorTokenCount / tokens.length : 0;
+
+  // Dust percentage: positions in the 3^12 matrix not observed
+  const totalPositions = Math.pow(3, 12); // 531441
+  const observedPositions = matchedAnchors.length;
+  const dustPercentage = ((totalPositions - observedPositions) / totalPositions) * 100;
+
+  return {
+    symbolic_footprint: {
+      total_tokens: tokens.length,
+      unique_tokens: uniqueTokens.length,
+      anchor_matches: matchedAnchors.length,
+      symbolic_density: parseFloat(symbolicDensity.toFixed(4)),
+      anchors: anchorHits,
+    },
+    convergence: {
+      converged_anchors: converged.map(a => a.anchor),
+      drifting_anchors: drifting.map(a => a.anchor),
+      convergence_health: converged.length > 0
+        ? parseFloat((converged.length / (converged.length + drifting.length)).toFixed(3))
+        : 0,
+    },
+    compression: {
+      original_bytes: originalBytes,
+      estimated_ratio: parseFloat(estimatedRatio.toFixed(4)),
+      estimated_compressed: Math.round(originalBytes * (1 - estimatedRatio)),
+      repeated_tokens: repeatedTokens,
+      csf_file: csfFile,
+    },
+    quantum_dust: {
+      total_positions: totalPositions,
+      observed: observedPositions,
+      dust_percentage: parseFloat(dustPercentage.toFixed(4)),
+    },
+  };
+}
+
+// ------------------------------------------------------------------
 // Multi-Agent Personas — derived from lore/spec, zero hard-coded replies
 // ------------------------------------------------------------------
 const AGENT_PERSONAS = [
@@ -2114,6 +2209,77 @@ Tone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the d
       } else {
         sendJson(res, { error: "not_found" }, 404);
       }
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  // GET /api/dream/recent — return recent dream journal entries
+  if (url.pathname === "/api/dream/recent" && req.method === "GET") {
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 100);
+    const entries = readRecentDreams(limit);
+    sendJson(res, { count: entries.length, entries });
+    return;
+  }
+
+  // GET /api/dream/csf-preview/:id — CSF symbolic analysis for a dream
+  if (url.pathname.startsWith("/api/dream/csf-preview/") && req.method === "GET") {
+    try {
+      const dreamId = url.pathname.replace("/api/dream/csf-preview/", "").replace(/[^a-zA-Z0-9_-]/g, "");
+      const csfDir = path.join(repoRoot, "data", "dream_journal", "csf");
+      const csfPath = path.join(csfDir, `${dreamId}.csf`);
+
+      // Find the dream entry text for live CSF analysis
+      const dreamDir = path.join(repoRoot, "data", "dream_journal");
+      let dreamEntry = null;
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (!content) continue;
+          for (const line of content.split("\n")) {
+            try {
+              const entry = JSON.parse(line);
+              if (entry.id === dreamId) { dreamEntry = entry; break; }
+            } catch { }
+          }
+          if (dreamEntry) break;
+        }
+      }
+
+      if (!dreamEntry) {
+        sendJson(res, { error: "dream_not_found" }, 404);
+        return;
+      }
+
+      const text = dreamEntry.text || dreamEntry.content || "";
+      const preview = generateCsfPreview(text, csfPath);
+      sendJson(res, { id: dreamId, ...preview });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  // GET /api/dream/csf-preview — CSF overview across all dreams
+  if (url.pathname === "/api/dream/csf-preview" && req.method === "GET") {
+    try {
+      const csfDir = path.join(repoRoot, "data", "dream_journal", "csf");
+      const csfFiles = fs.existsSync(csfDir)
+        ? fs.readdirSync(csfDir).filter(f => f.endsWith(".csf"))
+        : [];
+      const entries = readRecentDreams(50);
+      const previews = entries.map(entry => {
+        const text = entry.text || entry.content || "";
+        const csfPath = path.join(csfDir, `${entry.id}.csf`);
+        return { id: entry.id, timestamp: entry.timestamp, ...generateCsfPreview(text, csfPath) };
+      });
+      sendJson(res, {
+        total_dreams: entries.length,
+        csf_files: csfFiles.length,
+        previews,
+      });
     } catch (error) {
       sendJson(res, { error: error.message }, 400);
     }

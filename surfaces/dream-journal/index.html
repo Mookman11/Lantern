@@ -92,6 +92,97 @@
     .entry .meta { font-size: 0.8rem; color: var(--muted); }
     .entry .content { margin-top: 0.25rem; white-space: pre-wrap; }
 
+    .csf-preview {
+      background: #1e1a28;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+    }
+    .csf-preview .csf-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .csf-preview .csf-label {
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .csf-preview .csf-density {
+      color: var(--accent2);
+      font-weight: 600;
+    }
+    .csf-anchors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin: 0.4rem 0;
+    }
+    .csf-anchor {
+      background: #322a45;
+      border-radius: 4px;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.7rem;
+      color: var(--accent);
+    }
+    .csf-anchor.converged {
+      background: #1a3a2a;
+      color: var(--success);
+    }
+    .csf-anchor.drifting {
+      background: #3a2a1a;
+      color: var(--accent2);
+    }
+    .csf-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+      margin-top: 0.4rem;
+    }
+    .csf-stat {
+      text-align: center;
+      background: #1a1520;
+      border-radius: 4px;
+      padding: 0.3rem;
+    }
+    .csf-stat .val {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .csf-stat .lbl {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .csf-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 0.4rem;
+      overflow: hidden;
+    }
+    .csf-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+    .csf-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 4px;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+    .csf-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
     .actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
     .actions a {
       color: var(--accent);
@@ -233,6 +324,78 @@
       navigator.clipboard.writeText(prompt).then(() => alert('Mirror prompt copied to clipboard.'));
     });
 
+    // --- CSF Symbolic Preview ---
+    const CSF_BUILTIN_ANCHORS = [
+      "Lantern", "Keystone", "Garden", "Table", "Return", "Convergence",
+      "CityOfDoors", "Sigil", "Founder", "Wish", "Anchor", "Door",
+      "Blinkbug", "Gage", "Xenon", "Fog", "Cloud", "Sea", "Dream",
+      "Mirror", "Reflection", "Light", "Path", "Threshold", "Crossing",
+      "Love", "Safety", "Truth", "Beauty", "Freedom", "Memory",
+      "Vivid", "Strange", "Familiar", "Distant", "Near", "Holding",
+      "Protecting", "Building", "Becoming", "Waking", "Sleeping",
+    ];
+
+    function analyzeCsf(text) {
+      const tokens = (text.match(/[A-Za-z_]+/g) || []);
+      const lower = tokens.map(t => t.toLowerCase());
+      const unique = [...new Set(tokens)];
+      const anchorLower = CSF_BUILTIN_ANCHORS.map(a => a.toLowerCase());
+      const hits = CSF_BUILTIN_ANCHORS
+        .map(a => ({ anchor: a, count: lower.filter(t => t === a.toLowerCase()).length }))
+        .filter(h => h.count > 0)
+        .sort((a, b) => b.count - a.count);
+      const converged = hits.filter(h => h.count >= 2);
+      const drifting = hits.filter(h => h.count === 1);
+      const anchorCount = hits.reduce((s, h) => s + h.count, 0);
+      const density = tokens.length > 0 ? anchorCount / tokens.length : 0;
+      const freq = {};
+      for (const t of tokens) freq[t] = (freq[t] || 0) + 1;
+      const repeated = Object.values(freq).filter(c => c >= 2).length;
+      const ratio = Math.min(0.95, (hits.length * 0.02) + (repeated / Math.max(unique.length, 1)) * 0.5 + 0.15);
+      const health = converged.length > 0 ? converged.length / (converged.length + drifting.length) : 0;
+      return { tokens: tokens.length, unique: unique.length, hits, converged, drifting, density, ratio, health };
+    }
+
+    function renderCsfPreview(csf) {
+      if (!csf.hits.length) return '';
+      const healthPct = (csf.health * 100).toFixed(0);
+      const densityPct = (csf.density * 100).toFixed(1);
+      const ratioPct = (csf.ratio * 100).toFixed(0);
+      const healthColor = csf.health > 0.6 ? 'var(--success)' : csf.health > 0.3 ? 'var(--accent2)' : '#e57373';
+      return `
+        <div class="csf-preview">
+          <div class="csf-header">
+            <span class="csf-label">CSF Symbolic Footprint</span>
+            <span class="csf-density">${densityPct}% symbolic</span>
+          </div>
+          <div class="csf-anchors">
+            ${csf.converged.map(h => `<span class="csf-anchor converged" title="Converged (${h.count}x)">${h.anchor}</span>`).join('')}
+            ${csf.drifting.map(h => `<span class="csf-anchor drifting" title="Drifting (1x)">${h.anchor}</span>`).join('')}
+          </div>
+          <div class="csf-stats">
+            <div class="csf-stat"><div class="val">${csf.hits.length}</div><div class="lbl">Anchors</div></div>
+            <div class="csf-stat"><div class="val">${ratioPct}%</div><div class="lbl">Compress</div></div>
+            <div class="csf-stat"><div class="val">${healthPct}%</div><div class="lbl">Convergence</div></div>
+          </div>
+          <div class="csf-bar"><div class="csf-bar-fill" style="width:${healthPct}%;background:${healthColor}"></div></div>
+        </div>`;
+    }
+
+    // Override render to include CSF preview
+    const _origRender = render;
+    render = function() {
+      const entries = loadEntries();
+      const container = document.getElementById('entries');
+      container.innerHTML = entries.slice().reverse().map(e => {
+        const csf = analyzeCsf(e.content || '');
+        return `
+          <div class="entry">
+            <div class="meta">${new Date(e.timestamp).toLocaleString()} &middot; Lucidity ${e.lucidity}/10 &middot; ${(e.emotions||[]).join(', ')||'no emotions tagged'}</div>
+            <div class="content">${escapeHtml(e.content)}</div>
+            ${renderCsfPreview(csf)}
+          </div>`;
+      }).join('');
+    };
     render();
   </script>
 </body>
