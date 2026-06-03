@@ -46,3 +46,5 @@ data/dreamer/notebooks/*.jsonl
 .claude/worktrees/
 data/dream_journal/*.jsonl
 data/dream_journal/csf/*.csf
+data/status/agent-monitor-latest.json
+data/conversations/garage-conversations.jsonl
