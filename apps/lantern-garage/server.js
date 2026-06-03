@@ -613,7 +613,171 @@ async function dreamChatReply(message, recentDreams) {
     } catch { /* fall through */ }
   }
 
-  // Provider 3: Ollama
+  // Provider 3: Gemini
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const geminiModel = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+      const payload = JSON.stringify({
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: agent.systemPrompt }] },
+      });
+      const https = require("https");
+      const reply = await new Promise((resolve, reject) => {
+        const geminiUrl = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`);
+        const req2 = https.request({
+          hostname: geminiUrl.hostname,
+          path: geminiUrl.pathname + geminiUrl.search,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        }, (upstream) => {
+          let data = "";
+          upstream.on("data", (c) => (data += c));
+          upstream.on("end", () => {
+            try {
+              const json = JSON.parse(data);
+              resolve(String(json.candidates?.[0]?.content?.parts?.[0]?.text || "").trim());
+            } catch { resolve(""); }
+          });
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("timeout")); });
+        req2.write(payload);
+        req2.end();
+      });
+      if (reply) {
+        return { reply, agent: agent.name, suggestions, online: true };
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Provider 4: Groq
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    try {
+      const payload = JSON.stringify({
+        model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: agent.systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+      const https = require("https");
+      const reply = await new Promise((resolve, reject) => {
+        const req2 = https.request({
+          hostname: "api.groq.com",
+          path: "/openai/v1/chat/completions",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${groqKey}`,
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        }, (upstream) => {
+          let data = "";
+          upstream.on("data", (c) => (data += c));
+          upstream.on("end", () => {
+            try {
+              const json = JSON.parse(data);
+              resolve(String(json.choices?.[0]?.message?.content || "").trim());
+            } catch { resolve(""); }
+          });
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("timeout")); });
+        req2.write(payload);
+        req2.end();
+      });
+      if (reply) {
+        return { reply, agent: agent.name, suggestions, online: true };
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Provider 5: DeepSeek
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    try {
+      const payload = JSON.stringify({
+        model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+        messages: [
+          { role: "system", content: agent.systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+      const https = require("https");
+      const reply = await new Promise((resolve, reject) => {
+        const req2 = https.request({
+          hostname: "api.deepseek.com",
+          path: "/v1/chat/completions",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${deepseekKey}`,
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        }, (upstream) => {
+          let data = "";
+          upstream.on("data", (c) => (data += c));
+          upstream.on("end", () => {
+            try {
+              const json = JSON.parse(data);
+              resolve(String(json.choices?.[0]?.message?.content || "").trim());
+            } catch { resolve(""); }
+          });
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("timeout")); });
+        req2.write(payload);
+        req2.end();
+      });
+      if (reply) {
+        return { reply, agent: agent.name, suggestions, online: true };
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Provider 6: GPT Web API bridge
+  try {
+    const payload = JSON.stringify({ message: text, persona: agent.id });
+    const reply = await new Promise((resolve, reject) => {
+      const req2 = http.request({
+        hostname: "127.0.0.1",
+        port: 3000,
+        path: "/api/chat",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        },
+      }, (upstream) => {
+        let data = "";
+        upstream.on("data", (c) => (data += c));
+        upstream.on("end", () => {
+          try {
+            const json = JSON.parse(data);
+            resolve(String(json.reply || "").trim());
+          } catch { resolve(""); }
+        });
+        upstream.on("error", reject);
+      });
+      req2.on("error", reject);
+      req2.setTimeout(8000, () => { req2.destroy(); reject(new Error("timeout")); });
+      req2.write(payload);
+      req2.end();
+    });
+    if (reply) {
+      return { reply, agent: agent.name, suggestions, online: true };
+    }
+  } catch { /* fall through */ }
+
+  // Provider 7: Ollama
   const ollamaBase = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
   try {
@@ -658,7 +822,7 @@ async function dreamChatReply(message, recentDreams) {
     }
   } catch { /* fall through */ }
 
-  // Provider 3: Offline persona fallback
+  // Provider 8: Offline persona fallback
   const snippet = text.slice(0, 90);
   const last = recentDreams[0];
   const lastText = last ? String(last.text || "").slice(0, 60) : "";
@@ -1959,11 +2123,237 @@ Tone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the d
         return;
       } catch (err) {
         sendError(`openai_unavailable: ${err.message}`);
-        // fall through to Ollama
+        // fall through
       }
     }
 
-    // ── Provider 3: Ollama (streaming) ────────────────────────────────────
+    // ── Provider 3: Gemini (non-streaming, tokens sent as one block) ─────
+    const geminiKeyStream = process.env.GEMINI_API_KEY;
+    if (geminiKeyStream && message) {
+      try {
+        const geminiModel = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+        const payload = JSON.stringify({
+          contents: [{ parts: [{ text: message }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+        });
+        const https = require("https");
+        const geminiReply = await new Promise((resolve, reject) => {
+          const geminiUrl = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKeyStream}`);
+          const req2 = https.request({
+            hostname: geminiUrl.hostname,
+            path: geminiUrl.pathname + geminiUrl.search,
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          }, (upstream) => {
+            let data = "";
+            upstream.on("data", (c) => (data += c));
+            upstream.on("end", () => {
+              try {
+                const json = JSON.parse(data);
+                resolve(String(json.candidates?.[0]?.content?.parts?.[0]?.text || "").trim());
+              } catch { resolve(""); }
+            });
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("gemini_timeout")); });
+          req2.write(payload);
+          req2.end();
+        });
+        if (geminiReply) {
+          fullReply = geminiReply;
+          const words = geminiReply.split(" ");
+          for (const word of words) {
+            sendToken(word + " ");
+          }
+          appendConversationEntry({
+            recordedAt: new Date().toISOString(),
+            surface: "dream-chat-stream",
+            role: "lantern",
+            text: fullReply.slice(0, maxConversationTextLength),
+          }).catch(() => {});
+          sendDone("gemini", { suggestions: ["Log this as a dream", "Mirror a dream", "Tell me about the doors"], agent: agent.name, online: true });
+          return;
+        }
+      } catch (err) {
+        sendError(`gemini_unavailable: ${err.message}`);
+        // fall through
+      }
+    }
+
+    // ── Provider 4: Groq (non-streaming, tokens sent as one block) ───────
+    const groqKeyStream = process.env.GROQ_API_KEY;
+    if (groqKeyStream && message) {
+      try {
+        const payload = JSON.stringify({
+          model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
+          ],
+        });
+        const https = require("https");
+        const groqReply = await new Promise((resolve, reject) => {
+          const req2 = https.request({
+            hostname: "api.groq.com",
+            path: "/openai/v1/chat/completions",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${groqKeyStream}`,
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          }, (upstream) => {
+            let data = "";
+            upstream.on("data", (c) => (data += c));
+            upstream.on("end", () => {
+              try {
+                const json = JSON.parse(data);
+                resolve(String(json.choices?.[0]?.message?.content || "").trim());
+              } catch { resolve(""); }
+            });
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("groq_timeout")); });
+          req2.write(payload);
+          req2.end();
+        });
+        if (groqReply) {
+          fullReply = groqReply;
+          const words = groqReply.split(" ");
+          for (const word of words) {
+            sendToken(word + " ");
+          }
+          appendConversationEntry({
+            recordedAt: new Date().toISOString(),
+            surface: "dream-chat-stream",
+            role: "lantern",
+            text: fullReply.slice(0, maxConversationTextLength),
+          }).catch(() => {});
+          sendDone("groq", { suggestions: ["Log this as a dream", "Mirror a dream", "Tell me about the doors"], agent: agent.name, online: true });
+          return;
+        }
+      } catch (err) {
+        sendError(`groq_unavailable: ${err.message}`);
+        // fall through
+      }
+    }
+
+    // ── Provider 5: DeepSeek (non-streaming, tokens sent as one block) ───
+    const deepseekKeyStream = process.env.DEEPSEEK_API_KEY;
+    if (deepseekKeyStream && message) {
+      try {
+        const payload = JSON.stringify({
+          model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
+          ],
+        });
+        const https = require("https");
+        const deepseekReply = await new Promise((resolve, reject) => {
+          const req2 = https.request({
+            hostname: "api.deepseek.com",
+            path: "/v1/chat/completions",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${deepseekKeyStream}`,
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          }, (upstream) => {
+            let data = "";
+            upstream.on("data", (c) => (data += c));
+            upstream.on("end", () => {
+              try {
+                const json = JSON.parse(data);
+                resolve(String(json.choices?.[0]?.message?.content || "").trim());
+              } catch { resolve(""); }
+            });
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("deepseek_timeout")); });
+          req2.write(payload);
+          req2.end();
+        });
+        if (deepseekReply) {
+          fullReply = deepseekReply;
+          const words = deepseekReply.split(" ");
+          for (const word of words) {
+            sendToken(word + " ");
+          }
+          appendConversationEntry({
+            recordedAt: new Date().toISOString(),
+            surface: "dream-chat-stream",
+            role: "lantern",
+            text: fullReply.slice(0, maxConversationTextLength),
+          }).catch(() => {});
+          sendDone("deepseek", { suggestions: ["Log this as a dream", "Mirror a dream", "Tell me about the doors"], agent: agent.name, online: true });
+          return;
+        }
+      } catch (err) {
+        sendError(`deepseek_unavailable: ${err.message}`);
+        // fall through
+      }
+    }
+
+    // ── Provider 6: GPT Web API bridge (non-streaming) ───────────────────
+    if (message) {
+      try {
+        const payload = JSON.stringify({ message, persona: agent.id });
+        const gptWebReply = await new Promise((resolve, reject) => {
+          const req2 = require("http").request({
+            hostname: "127.0.0.1",
+            port: 3000,
+            path: "/api/chat",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          }, (upstream) => {
+            let data = "";
+            upstream.on("data", (c) => (data += c));
+            upstream.on("end", () => {
+              try {
+                const json = JSON.parse(data);
+                resolve(String(json.reply || "").trim());
+              } catch { resolve(""); }
+            });
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(8000, () => { req2.destroy(); reject(new Error("gpt_web_api_timeout")); });
+          req2.write(payload);
+          req2.end();
+        });
+        if (gptWebReply) {
+          fullReply = gptWebReply;
+          const words = gptWebReply.split(" ");
+          for (const word of words) {
+            sendToken(word + " ");
+          }
+          appendConversationEntry({
+            recordedAt: new Date().toISOString(),
+            surface: "dream-chat-stream",
+            role: "lantern",
+            text: fullReply.slice(0, maxConversationTextLength),
+          }).catch(() => {});
+          sendDone("gpt_web_api", { suggestions: ["Log this as a dream", "Mirror a dream", "Tell me about the doors"], agent: agent.name, online: true });
+          return;
+        }
+      } catch (err) {
+        sendError(`gpt_web_api_unavailable: ${err.message}`);
+        // fall through
+      }
+    }
+
+    // ── Provider 7: Ollama (streaming) ────────────────────────────────────
     const ollamaBase = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
     const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
     if (message) {
@@ -2043,7 +2433,7 @@ Tone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the d
       }
     }
 
-    // ── Provider 3: Offline fallback — stream words from rule-engine ─────
+    // ── Provider 8: Offline fallback — stream words from rule-engine ─────
     const fallback = await dreamChatReply(message, recentDreams);
     const words = String(fallback.reply || "").split(" ");
     for (const word of words) {
@@ -2286,10 +2676,139 @@ Tone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the d
     return;
   }
 
+  // ── Agent Status API ─────────────────────────────────────────────────
+  if (url.pathname === "/api/agent/status" && req.method === "GET") {
+    const dreamDir = path.join(repoRoot, "data", "dream_journal");
+    const csfDir = path.join(dreamDir, "csf");
+    let totalDreams = 0;
+    let csfFiles = 0;
+    try {
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (content) totalDreams += content.split("\n").filter(Boolean).length;
+        }
+      }
+      if (fs.existsSync(csfDir)) {
+        csfFiles = fs.readdirSync(csfDir).filter(f => f.endsWith(".csf")).length;
+      }
+    } catch { /* best effort */ }
+
+    const fleetDir = path.join(repoRoot, "data", "agent-fleet");
+    let fleetSlots = [];
+    try {
+      if (fs.existsSync(fleetDir)) {
+        fleetSlots = fs.readdirSync(fleetDir)
+          .filter(f => f.endsWith(".json"))
+          .map(f => f.replace(/\.json$/, ""));
+      }
+    } catch { /* best effort */ }
+
+    const ollamaBaseStatus = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+    sendJson(res, {
+      providers: {
+        claude: { configured: Boolean(process.env.ANTHROPIC_API_KEY), model: process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307" },
+        openai: { configured: Boolean(process.env.OPENAI_API_KEY), model: process.env.OPENAI_MODEL || "gpt-4o-mini" },
+        gemini: { configured: Boolean(process.env.GEMINI_API_KEY), model: process.env.GEMINI_MODEL || "gemini-2.0-flash" },
+        groq: { configured: Boolean(process.env.GROQ_API_KEY), model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile" },
+        deepseek: { configured: Boolean(process.env.DEEPSEEK_API_KEY), model: process.env.DEEPSEEK_MODEL || "deepseek-chat" },
+        ollama: { configured: true, base_url: ollamaBaseStatus, model: process.env.OLLAMA_MODEL || "llama3" },
+        gpt_web_api: { configured: true, url: "http://127.0.0.1:3000" },
+      },
+      personas: AGENT_PERSONAS.map(a => ({ id: a.id, name: a.name, symbol: a.symbol })),
+      fleet_slots: fleetSlots,
+      dream_stats: { total_dreams: totalDreams, csf_files: csfFiles },
+    });
+    return;
+  }
+
+  // ── Agent Inspector API ─────────────────────────────────────────────
+  if (url.pathname === "/api/agent/inspect" && req.method === "GET") {
+    // Provider health
+    const providerHealth = {
+      claude: { api_key_set: Boolean(process.env.ANTHROPIC_API_KEY), model: process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307" },
+      openai: { api_key_set: Boolean(process.env.OPENAI_API_KEY), model: process.env.OPENAI_MODEL || "gpt-4o-mini" },
+      gemini: { api_key_set: Boolean(process.env.GEMINI_API_KEY), model: process.env.GEMINI_MODEL || "gemini-2.0-flash" },
+      groq: { api_key_set: Boolean(process.env.GROQ_API_KEY), model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile" },
+      deepseek: { api_key_set: Boolean(process.env.DEEPSEEK_API_KEY), model: process.env.DEEPSEEK_MODEL || "deepseek-chat" },
+      ollama: { always_available: true, base_url: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434", model: process.env.OLLAMA_MODEL || "llama3" },
+      gpt_web_api: { always_available: true, url: "http://127.0.0.1:3000" },
+    };
+
+    // Fleet slots
+    const fleetDir = path.join(repoRoot, "data", "agent-fleet");
+    let fleetSlots = [];
+    try {
+      if (fs.existsSync(fleetDir)) {
+        const files = fs.readdirSync(fleetDir).filter(f => f.endsWith(".json"));
+        for (const file of files) {
+          try {
+            const content = JSON.parse(fs.readFileSync(path.join(fleetDir, file), "utf-8"));
+            fleetSlots.push({ file, ...content });
+          } catch {
+            fleetSlots.push({ file, error: "parse_error" });
+          }
+        }
+      }
+    } catch { /* best effort */ }
+
+    // Orchestrator memory size (count lines in dream_journal/*.jsonl)
+    const dreamDir = path.join(repoRoot, "data", "dream_journal");
+    let orchestratorMemoryLines = 0;
+    try {
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (content) orchestratorMemoryLines += content.split("\n").filter(Boolean).length;
+        }
+      }
+    } catch { /* best effort */ }
+
+    // CSF file count and total size
+    const csfDir = path.join(dreamDir, "csf");
+    let csfFileCount = 0;
+    let csfTotalBytes = 0;
+    try {
+      if (fs.existsSync(csfDir)) {
+        const csfFiles = fs.readdirSync(csfDir).filter(f => f.endsWith(".csf"));
+        csfFileCount = csfFiles.length;
+        for (const file of csfFiles) {
+          try {
+            csfTotalBytes += fs.statSync(path.join(csfDir, file)).size;
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* best effort */ }
+
+    sendJson(res, {
+      generatedAt: new Date().toISOString(),
+      providers: providerHealth,
+      fleet_slots: fleetSlots,
+      orchestrator_memory: { total_dream_lines: orchestratorMemoryLines },
+      csf: { file_count: csfFileCount, total_bytes: csfTotalBytes },
+    });
+    return;
+  }
+
   if (url.pathname === "/hub") {
     const hubPath = path.resolve(repoRoot, "central-hub.html");
     sendFile(res, hubPath);
     return;
+  }
+
+  // Serve surfaces/ directory (dream-journal, dashboard, etc.)
+  const surfacesRoot = path.join(repoRoot, "surfaces");
+  if (url.pathname.startsWith("/surfaces/")) {
+    let surfacePath = url.pathname.slice("/surfaces/".length);
+    if (surfacePath.endsWith("/")) surfacePath += "index.html";
+    if (!surfacePath.includes(".")) surfacePath += "/index.html";
+    const surfaceTarget = path.resolve(surfacesRoot, surfacePath);
+    if (surfaceTarget.startsWith(surfacesRoot)) {
+      sendFile(res, surfaceTarget);
+      return;
+    }
   }
 
   const staticPath = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
