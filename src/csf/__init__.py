@@ -22,8 +22,29 @@ class CsfArchive:
     def segment_count(self) -> int:
         return len(self._segments)
 
+    @property
+    def uncompressed_size(self) -> int:
+        return sum(len(s) for s in self._segments)
+
+    @property
+    def ratio(self) -> float:
+        uc = self.uncompressed_size
+        if uc == 0:
+            return 0.0
+        buf = io.BytesIO()
+        self._write_to(buf)
+        return buf.tell() / uc
+
     def add_bytes(self, data: bytes) -> None:
         self._segments.append(data)
+
+    def add_file(self, path: str | Path) -> None:
+        with open(path, "rb") as f:
+            self._segments.append(f.read())
+
+    def write(self, path: str | Path) -> None:
+        with open(path, "w+b") as f:
+            self._write_to(f)
 
     def search(self, query: str) -> list[tuple[int, int, str]]:
         results = []
