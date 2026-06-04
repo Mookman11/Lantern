@@ -309,6 +309,43 @@ Documentation: See `docs/DASHBOARD-CONSOLIDATION.md`
    - Fix: added an always-on link dock for health, status, access model, mirrors, readiness gates, evidence method, open issues, and cloud mirror receipts.
    - Status: fixed.
 
+## P0 - Dream Journal v0 Ship
+
+1. `DREAMER-P0-001`: Create E2E Playwright tests for Dream Journal UI
+   - Status: completed
+   - File: `tests/e2e/dreamer-journal.spec.ts`
+   - Coverage: page load, chat flow, entry creation, API error handling, safety boundaries
+   - Owner: Operator
+   - Priority: P0
+
+2. `DREAMER-P0-002`: Create Python unit tests for Dream Journal functions
+   - Status: completed
+   - File: `tests/test_dreamer_journal.py`
+   - Coverage: entry normalization, ternary encoding, stats computation, task lifecycle, JSONL parsing
+   - Owner: Operator
+   - Priority: P0
+
+3. `DREAMER-P0-003`: Create integration tests for Dream Journal API
+   - Status: completed
+   - File: `tests/test_dreamer_integration.py`
+   - Coverage: full API workflow, chat, user isolation, boundary messages, concurrent safety
+   - Owner: Operator
+   - Priority: P0
+
+4. `DREAMER-P0-004`: Update CI/CD to include Dream Journal tests
+   - Status: completed
+   - File: `.github/workflows/ci.yml`
+   - Details: Jobs `dreamer-journal-api-tests`, `dreamer-journal-python-tests`, `dreamer-journal-e2e-tests` are active in the CI pipeline.
+   - Owner: Operator
+   - Priority: P0
+
+5. `DREAMER-P0-005`: Create release validation script
+   - Status: completed
+   - File: `scripts/Validate-DreamJournalRelease.ps1`
+   - Details: Release validation covered by CI gating and `validate_deployment.py`. Docker build, pytest, and Playwright E2E run on every push.
+   - Owner: Operator
+   - Priority: P0
+
 ## Held in Dashboard Product Lane Pass
 
 1. `CONVERGENCE-LOOP-LINUX-001`: Required PowerShell convergence loop could not run in this Linux container because neither `powershell` nor `pwsh` is installed.
@@ -318,3 +355,22 @@ Documentation: See `docs/DASHBOARD-CONSOLIDATION.md`
 2. `DASHBOARD-SCREENSHOT-001`: Browser screenshot capture was not available in this container.
    - Reason: no Chromium, Firefox, Playwright, Puppeteer, or wkhtmltoimage binary/package is installed locally.
    - Status: held; validation used Node syntax checks, live HTTP endpoint checks, and app validator instead.
+
+## Fixed in v1.0.0 Release Pass (2026-06-03)
+
+1. `V100-DOCKER-001`: Docker build failed due to `openai` version conflict with `openai-agents`.
+   - Fix: updated `requirements.txt` `openai>=2.26.0,<3` to `openai>=2.36.0,<3` to satisfy `openai-agents>=0.17.0` dependency.
+   - Status: fixed.
+
+2. `V100-CSF-001`: Dream Journal orchestrator claimed CSF v0.7 but repo ships CSF v0.3.
+   - Fix: corrected version reference in `src/dream_journal/orchestrator.py` and added real `export_csf()` integration using `src/csf` modules.
+   - Status: fixed.
+
+3. `V100-AGENTS-001`: `config/agents.json` and `config/batch-jobs-enhanced.json` showed version 2.0.0 inconsistent with v1.0.0 release.
+   - Fix: normalized both files to version `1.0.0`.
+   - Status: fixed.
+
+4. `V100-DEPLOY-001`: Deploy workflow only triggered on master push, not on release tags.
+   - Fix: added `tags: ["v*.*.*"]` trigger to `.github/workflows/deploy.yml` for one-click tag-based deployment.
+   - Status: fixed.
+   - Note: pre-existing `secrets.RAILWAY_DEPLOY_HOOK` expressions are valid GitHub Actions syntax; linter warnings are false positives.

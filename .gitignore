@@ -29,12 +29,45 @@ artifacts/*
 node_modules/
 **/node_modules/
 
+# Python build artifacts
+*.egg-info/
+dist/
+build/
+
 # Discord subscriber data (local only, not in Git)
 data/discord/subscribers.json
 
-# Local runtime data (journals, dream logs — not committed)
-data/dream_journal/
+# Dreamer notebooks — private user data (local only)
+data/dreamer/notebooks/*.jsonl
 
-# Claude Code internal agent state
+# Google Drive temp folders
+.tmp.driveupload/
+.tmp.drivedownload/
 .claude/worktrees/
-data/dreamer/
+data/dream_journal/*.jsonl
+
+# Deployment weight reduction (static site deploy)
+.git/
+
+# === Anti-bloat additions (2026-06-03) ===
+# Temporary / one-off artifacts
+*.md.bak
+*HANDOFF*
+*DEPLOYMENT-REPORT*
+*PROGRESS-TRACKING*
+.tmp-*/
+archive/**/worktrees/**
+
+# Old versioned files
+* -v2*
+* -v3*
+*old*
+*backup*
+.claude/
+artifacts/
+data/dream_journal/
+data/dollhouse/csf/
+data/agent-fleet/
+*.tmp
+*.log
+__pycache__/

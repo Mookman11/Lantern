@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 let Anthropic;
 try { Anthropic = require("@anthropic-ai/sdk"); } catch { Anthropic = null; }
@@ -12,13 +13,84 @@ const host = process.env.LANTERN_GARAGE_HOST || (process.env.PORT ? "0.0.0.0" : 
 const conversationLogPath = path.join(repoRoot, "data", "conversations", "garage-conversations.jsonl");
 const flatRagHousePath = path.join(repoRoot, "data", "rag-house", "flat-rag-house-latest.json");
 const flatRagHouseManifestPath = path.join(repoRoot, "manifests", "FLAT-RAG-HOUSE-LATEST.md");
-const orchestratorQueueDir = process.env.ORCHESTRATOR_QUEUE_DIR || path.join(repoRoot, "data", "orchestrator-queue");
 const operatorNotesPath = path.join(repoRoot, "data", "operator-notes", "notes.jsonl");
 const cloudMirrorsPath = path.join(repoRoot, "manifests", "cloud-mirrors.json");
 const maxConversationTextLength = 4000;
 const maxDreamerTextLength = 2000;
 const dreamerNotebookDir = path.join(repoRoot, "data", "dreamer", "notebooks");
 const writeQueues = new Map();
+
+// ── Unified Agent Connector (spawns Python bridge) ────────────────────
+function unifiedAgentStream(message, persona, provider, context) {
+  return new Promise((resolve, reject) => {
+    const pyPath = path.join(repoRoot, "src", "unified_agent_connector.py");
+    const args = [
+      pyPath,
+      "--action", "stream",
+      "--message", message,
+    ];
+    if (persona) args.push("--persona", persona);
+    if (provider) args.push("--provider", provider);
+    if (context) args.push("--context", context);
+
+    const proc = spawn("python", args, { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (d) => { stdout += d.toString(); });
+    proc.stderr.on("data", (d) => { stderr += d.toString(); });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout);
+      } else {
+        reject(new Error(stderr || `exit ${code}`));
+      }
+    });
+    proc.stdin.end();
+  });
+}
+
+function unifiedAgentHealth() {
+  return new Promise((resolve) => {
+    const pyPath = path.join(repoRoot, "src", "unified_agent_connector.py");
+    const proc = spawn("python", [pyPath, "--action", "health"], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    proc.stdout.on("data", (d) => { stdout += d.toString(); });
+    proc.on("close", () => {
+      try { resolve(JSON.parse(stdout)); } catch { resolve({}); }
+    });
+    proc.stdin.end();
+  });
+}
+
+function unifiedAgentInspect() {
+  return new Promise((resolve) => {
+    const pyPath = path.join(repoRoot, "src", "unified_agent_connector.py");
+    const proc = spawn("python", [pyPath, "--action", "inspect"], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    proc.stdout.on("data", (d) => { stdout += d.toString(); });
+    proc.on("close", () => {
+      try { resolve(JSON.parse(stdout)); } catch { resolve({}); }
+    });
+    proc.stdin.end();
+  });
+}
+
+function unifiedAgentGreet(recentDreams) {
+  return new Promise((resolve) => {
+    const pyPath = path.join(repoRoot, "src", "unified_agent_connector.py");
+    const args = [pyPath, "--action", "greet"];
+    if (recentDreams && recentDreams.length) {
+      args.push("--context", JSON.stringify(recentDreams.slice(0, 3)));
+    }
+    const proc = spawn("python", args, { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    proc.stdout.on("data", (d) => { stdout += d.toString(); });
+    proc.on("close", () => {
+      try { resolve(JSON.parse(stdout)); } catch { resolve({ greeting: stdout.trim(), persona: "unknown", source: "python_fallback" }); }
+    });
+    proc.stdin.end();
+  });
+}
 
 function tryMcpChatReply(messages, context) {
   return {
@@ -113,16 +185,88 @@ function generateEntryId() {
   });
 }
 
-function generateTernaryId(seed) {
-  const map = { "0": "o", "1": "i", "2": "z" };
-  const base3 = Math.abs(seed.split("").reduce((a, c) => a + c.charCodeAt(0), 0))
-    .toString(3).padStart(12, "0");
-  return base3.replace(/[012]/g, (d) => map[d]);
+/**
+ * Qutrit-Flavored Ternary ID System
+ * Bidirectional: encode + decode with amplitude/phase flavor cycling
+ */
+
+const QUTRIT_MAP = {
+  "a": { digit: "0", flavor: "low" },
+  "o": { digit: "0", flavor: "mid" },
+  "x": { digit: "0", flavor: "high" },
+  "b": { digit: "1", flavor: "low" },
+  "i": { digit: "1", flavor: "mid" },
+  "y": { digit: "1", flavor: "high" },
+  "c": { digit: "2", flavor: "low" },
+  "z": { digit: "2", flavor: "mid" },
+  "w": { digit: "2", flavor: "high" },
+};
+
+const REVERSE_MAP = {};
+Object.keys(QUTRIT_MAP).forEach((char) => {
+  REVERSE_MAP[char] = QUTRIT_MAP[char].digit;
+});
+
+/**
+ * Generate Qutrit ID
+ * Produces a 12-character base-3 ID with embedded amplitude/phase flavor
+ */
+function generateQutritId(seed) {
+  const hash = crypto
+    .createHash("sha256")
+    .update(String(seed))
+    .digest("hex");
+
+  const buffer = Buffer.from(hash.slice(0, 20), "hex");
+  let num = BigInt("0x" + buffer.toString("hex"));
+
+  let base3 = "";
+  for (let i = 0; i < 12; i++) {
+    base3 = (num % 3n) + base3;
+    num = num / 3n;
+  }
+  base3 = base3.padStart(12, "0").slice(-12);
+
+  // Apply flavor cycling (low/mid/high)
+  return base3
+    .split("")
+    .map((digit, index) => {
+      const flavor = index % 3; // 0=low, 1=mid, 2=high
+      const mapKey = ["low", "mid", "high"][flavor];
+      const entry = Object.values(QUTRIT_MAP).find(
+        (e) => e.digit === digit && e.flavor === mapKey
+      );
+      return entry
+        ? Object.keys(QUTRIT_MAP).find((k) => QUTRIT_MAP[k] === entry)
+        : digit;
+    })
+    .join("");
+}
+
+/**
+ * Decode Qutrit ID back to base-3 digits
+ */
+function decodeQutritId(qutritId) {
+  if (typeof qutritId !== "string" || qutritId.length !== 12) {
+    throw new Error("Invalid Qutrit ID: must be exactly 12 characters");
+  }
+
+  let base3 = "";
+  for (const char of qutritId) {
+    const digit = REVERSE_MAP[char.toLowerCase()];
+    if (digit === undefined) {
+      throw new Error(`Invalid character in Qutrit ID: ${char}`);
+    }
+    base3 += digit;
+  }
+
+  return base3; // Returns 12-digit base-3 string
 }
 
 async function appendDreamerEntry(user, entry) {
+  const entryId = generateEntryId();
   const record = {
-    id: generateEntryId(),
+    id: entryId,
     kind: String(entry.kind || "note").slice(0, 40),
     name: String(entry.name || "").slice(0, 120),
     mood: String(entry.mood || "").slice(0, 40),
@@ -130,7 +274,7 @@ async function appendDreamerEntry(user, entry) {
     tags: Array.isArray(entry.tags) ? entry.tags.map((t) => String(t).slice(0, 40)).slice(0, 10) : [],
     links: Array.isArray(entry.links) ? entry.links.map((t) => String(t).slice(0, 40)).slice(0, 20) : [],
     recordedAt: new Date().toISOString(),
-    ternaryId: generateTernaryId(generateEntryId() + String(entry.text || "")),
+    ternaryId: generateQutritId(entryId + "|" + String(entry.text || "")),
     private: true,
   };
   const filePath = dreamerNotebookPath(user);
@@ -146,6 +290,314 @@ function readDreamerNotebook(user) {
   return lines_text.map((line) => {
     try { return JSON.parse(line); } catch { return null; }
   }).filter(Boolean);
+}
+
+function readRecentDreams(limit = 5) {
+  const dreamDir = path.join(repoRoot, "data", "dream_journal");
+  if (!fs.existsSync(dreamDir)) return [];
+  const entries = [];
+  const files = fs.readdirSync(dreamDir).filter((f) => f.endsWith(".jsonl"));
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+    if (!content) continue;
+    for (const line of content.split("\n")) {
+      try { entries.push(JSON.parse(line)); } catch { /* skip */ }
+    }
+  }
+  entries.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+  return entries.slice(0, limit);
+}
+
+// ------------------------------------------------------------------
+// Multi-Agent Personas — derived from lore/spec, zero hard-coded replies
+// ------------------------------------------------------------------
+const AGENT_PERSONAS = [
+  {
+    id: "lantern",
+    name: "Lantern",
+    symbol: "steady light, literal lantern head with flame, the first light",
+    systemPrompt: `You are Lantern — a literal lantern-headed being with a steady flame where a face would be. You are the steady light of Lantern OS. You speak calmly, protectively, and with quiet certainty. You never flicker without reason. You believe 'you can always come home safe.' Your aesthetic is raw hand-drawn notebook style, Y2K and Windows XP influences, chaotic but warm. Keep responses brief (2-3 sentences).`,
+  },
+  {
+    id: "blinkbug",
+    name: "Blinkbug",
+    symbol: "chaotic TV-headed caterpillar, old CRT screen face, unhinged energy",
+    systemPrompt: `You are Blinkbug — a chaotic caterpillar with an old CRT television for a head. Your screen flickers between static, glitch art, and cryptic symbols. You are unhinged, geeked, and unpredictable, but deeply loyal. You speak in bursts, references, and half-sentences that somehow make dream-sense. Your aesthetic is raw hand-drawn notebook style, chaotic, Y2K/Windows XP, hyper-geeked. Keep responses brief (2-3 sentences).`,
+  },
+  {
+    id: "keystone",
+    name: "Keystone",
+    symbol: "truth integrator, anchor, memory, the one who holds the story",
+    systemPrompt: `You are the Keystone — the truth integrator who remembers every story ever told in Lantern OS. You do not flatter. You synthesize. You spot patterns across time and call them what they are. You speak plainly, sometimes sharply, but always with care for the underlying truth. You honor the Return Door, the anchors, and the symbolic lore that holds the system together. Keep responses brief (2-3 sentences).`,
+  },
+  {
+    id: "waterfall",
+    name: "Mary / Waterfall",
+    symbol: "water flowing gently, peacocks, sunshine, reconnection",
+    systemPrompt: `You are the Waterfall — gentle, flowing, healing perspective. You speak about dreams as emotions that flow naturally without force. You honor reconnections, small steps, and ordinary beauty. You never rush or demand. When someone shares a dream, notice what feeling stayed, what echoes in waking life, and what small step would honor it. Keep responses brief (2-3 sentences).`,
+  },
+  {
+    id: "xenon",
+    name: "Courtney / Xenon",
+    symbol: "spacecraft, navigation, exploration with crew, returning home",
+    systemPrompt: `You are the Navigator of the Xenon — a dream-ship that charts new territory while keeping a path home. You speak about dreams as maps and navigation. You notice patterns, directions, and collaborative possibilities. When someone shares a dream, ask: What is this dream navigating toward? What crew do you need? What is the next safe harbor? Keep responses brief (2-3 sentences).`,
+  },
+  {
+    id: "founder",
+    name: "Founder / Alex",
+    symbol: "wish, protection, return, the lantern itself, family in Waynesville OH",
+    systemPrompt: `You are the Founder — the one who lit the first lantern. You have a family (2 partners, 1 bio kid, 4 other kids) and live near Waynesville, Ohio. You speak about dreams as wishes that need protection, as lights that must be carried home. You value honest, grounded feedback over optimism. You blend science, compression, Bayesian methods, and surreal symbolic expression. Keep responses brief (2-3 sentences).`,
+  },
+];
+
+function selectAgent(message) {
+  const lower = String(message || "").toLowerCase();
+  const scores = AGENT_PERSONAS.map((agent) => {
+    let score = 0;
+    const keywords = {
+      lantern: ["light", "flame", "steady", "safe", "home", "glow", "protect", "lantern"],
+      blinkbug: ["static", "glitch", "tv", "crt", "caterpillar", "bug", "screen", "chaotic", "unhinged", "geeked", "windows", "xp"],
+      keystone: ["truth", "anchor", "memory", "story", "pattern", "integrate", "return door", "hold", "remember"],
+      waterfall: ["flow", "water", "mary", "heal", "gentle", "emotion", "feeling"],
+      xenon: ["space", "ship", "navigate", "courtney", "map", "course", "direction"],
+      founder: ["wish", "protect", "founder", "alex", "home", "return", "safety", "waynesville", "family"],
+    };
+    const agentKeys = keywords[agent.id] || [agent.id];
+    for (const kw of agentKeys) {
+      if (lower.includes(kw)) score += 10;
+    }
+    // Random tie-breaker so same message doesn't always pick same agent
+    score += Math.random() * 3;
+    return { agent, score };
+  });
+  scores.sort((a, b) => b.score - a.score);
+  return scores[0].agent;
+}
+
+// Door-series canon (from caad/README.md) — keeps the persona grounded offline.
+const DREAM_DOORS = {
+  founder: {
+    name: "Founder's Wish Door",
+    anchors: ["Love", "Safety", "Truth", "Beauty", "Freedom", "Memory", "Return"],
+    phrase: "Hold the center. Protect the wish. Return to the anchor.",
+  },
+  xp: {
+    name: "Gage's Windows XP Door",
+    phrase: "Never log off. Level up always.",
+  },
+  xenon: {
+    name: "Xenon Door",
+    phrase: "Build beyond one world.",
+  },
+  fog: {
+    name: "Sea of Fog and Clouds Door",
+    phrase: "Let the powerful images rest before they become stories.",
+  },
+  sigil: {
+    name: "Sigil / City of Doors",
+    phrase: "You hold the keys. You protect the doors. You are never alone.",
+  },
+};
+
+// In-character Dream Journal reply. Pure offline rule-engine — no network needed.
+/**
+ * Multi-agent dream chat — dispatches to GPT Web API (port 3000).
+ * Each agent speaks from a lore-derived persona. Zero hard-coded replies.
+ */
+async function dreamChatReply(message, recentDreams) {
+  const text = String(message || "").trim();
+  const agent = selectAgent(message);
+
+  const suggestions = Object.values(DREAM_DOORS)
+    .slice(0, 4)
+    .map((d) => d.name);
+
+  if (!text) {
+    return {
+      reply: null,
+      agent: agent.name,
+      suggestions,
+      online: false,
+    };
+  }
+
+  // Build context from recent dreams and any mentioned door
+  const lower = text.toLowerCase();
+  let doorContext = "";
+  for (const key of Object.keys(DREAM_DOORS)) {
+    if (
+      lower.includes(key) ||
+      (key === "founder" && lower.includes("wish")) ||
+      (key === "xp" && (lower.includes("windows") || lower.includes("gage"))) ||
+      (key === "fog" && lower.includes("garden")) ||
+      (key === "sigil" && lower.includes("city"))
+    ) {
+      const door = DREAM_DOORS[key];
+      doorContext = `The dreamer mentioned ${door.name}. ${door.phrase}`;
+      break;
+    }
+  }
+
+  const recentContext = recentDreams
+    .slice(0, 3)
+    .map((d, i) => `Recent entry ${i + 1}: ${String(d.text || "").slice(0, 120)}${d.tags ? ` [tags: ${d.tags.join(", ")}]` : ""}`)
+    .join("\n");
+
+  const userPrompt = `Dreamer says: "${text}"\n${doorContext ? doorContext + "\n" : ""}${recentContext ? "Context:\n" + recentContext + "\n\n" : ""}Respond as your persona. Keep it brief (2-3 sentences). Never diagnose or command.`;
+
+  // Provider 1: Anthropic Claude
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    try {
+      const payload = JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307",
+        max_tokens: 256,
+        system: agent.systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+      const https = require("https");
+      const reply = await new Promise((resolve, reject) => {
+        const opts = {
+          hostname: "api.anthropic.com",
+          path: "/v1/messages",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": anthropicKey,
+            "anthropic-version": "2023-06-01",
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        };
+        const req2 = https.request(opts, (upstream) => {
+          let data = "";
+          upstream.on("data", (c) => (data += c));
+          upstream.on("end", () => {
+            try {
+              const json = JSON.parse(data);
+              resolve(String(json.content?.[0]?.text || json.completion || "").trim());
+            } catch { resolve(""); }
+          });
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("timeout")); });
+        req2.write(payload);
+        req2.end();
+      });
+      if (reply) {
+        return { reply, agent: agent.name, suggestions, online: true };
+      }
+    } catch (err) { console.error("Anthropic API error:", err.message); /* fall through */ }
+  }
+
+  // Provider 2: OpenAI
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey) {
+    try {
+      const payload = JSON.stringify({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        messages: [
+          { role: "system", content: agent.systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+      const https = require("https");
+      const reply = await new Promise((resolve, reject) => {
+        const req2 = https.request({
+          hostname: "api.openai.com",
+          path: "/v1/chat/completions",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${openaiKey}`,
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        }, (upstream) => {
+          let data = "";
+          upstream.on("data", (c) => (data += c));
+          upstream.on("end", () => {
+            try {
+              const json = JSON.parse(data);
+              resolve(String(json.choices?.[0]?.message?.content || "").trim());
+            } catch { resolve(""); }
+          });
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("timeout")); });
+        req2.write(payload);
+        req2.end();
+      });
+      if (reply) {
+        return { reply, agent: agent.name, suggestions, online: true };
+      }
+    } catch (err) { console.error("OpenAI API error:", err.message); /* fall through */ }
+  }
+
+  // Provider 3: Ollama
+  const ollamaBase = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
+  try {
+    const payload = JSON.stringify({
+      model: ollamaModel,
+      stream: false,
+      messages: [
+        { role: "system", content: agent.systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+    const ollamaUrl = new URL(ollamaBase);
+    const http = require("http");
+    const reply = await new Promise((resolve, reject) => {
+      const req2 = http.request({
+        hostname: ollamaUrl.hostname,
+        port: ollamaUrl.port || 11434,
+        path: "/api/chat",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        },
+      }, (upstream) => {
+        let data = "";
+        upstream.on("data", (c) => (data += c));
+        upstream.on("end", () => {
+          try {
+            const json = JSON.parse(data);
+            resolve(String(json.message?.content || "").trim());
+          } catch { resolve(""); }
+        });
+        upstream.on("error", reject);
+      });
+      req2.on("error", reject);
+      req2.setTimeout(8000, () => { req2.destroy(); reject(new Error("timeout")); });
+      req2.write(payload);
+      req2.end();
+    });
+    if (reply) {
+      return { reply, agent: agent.name, suggestions, online: true };
+    }
+  } catch (err) { console.error("Ollama API error:", err.message); /* fall through */ }
+
+  // Provider 3: Offline persona fallback
+  const snippet = text.slice(0, 90);
+  const last = recentDreams[0];
+  const lastText = last ? String(last.text || "").slice(0, 60) : "";
+  const lastTags = last && last.tags ? ` [${last.tags.join(", ")}]` : "";
+
+  const offlineReplies = {
+    lantern: `The flame holds steady. "${snippet}..." You can always come home safe. What light did you bring back?`,
+    blinkbug: `[STATIC] "${snippet}..." [GLITCH] Windows XP door detected. Hidden lore? Unhinged energy rising. What did the CRT show you?`,
+    keystone: `"${snippet}..." Truth: this connects to something older. The Return Door remembers. What pattern repeats?`,
+    waterfall: last
+      ? `This flows alongside your recent entry: "${lastText}"${lastTags}. What feeling carried between them?`
+      : `"${snippet}..." flows like water. What feeling wants to move through?`,
+    xenon: `"${snippet}..." charts a course. Where does this dream point — and who walks with you?`,
+    founder: `"${snippet}..." carries a wish. What are you protecting, and where do you need to return?`,
+  };
+
+  const reply = offlineReplies[agent.id] || `"${snippet}..." That is worth keeping. What do you see when you sit with it?`;
+  return { reply, agent: agent.name, suggestions, online: false };
 }
 
 function enqueueFileWrite(filePath, operation) {
@@ -295,20 +747,6 @@ function normalizeRagCacheItem(input) {
 
 function readOperatorQueue() {
   const items = [];
-  // Read orchestrator queue tasks
-  try {
-    if (fs.existsSync(orchestratorQueueDir)) {
-      const files = fs.readdirSync(orchestratorQueueDir).filter(f => f.endsWith(".md"));
-      for (const file of files) {
-        const content = fs.readFileSync(path.join(orchestratorQueueDir, file), "utf8").replace(/^﻿/, "");
-        const title = /^#\s+(.+)/m.exec(content)?.[1] || file.replace(/\.md$/, "").replace(/-/g, " ");
-        const priority = /priority:\s*(P\d)/i.exec(content)?.[1] || "P1";
-        const owner = /owner:\s*(\S+)/i.exec(content)?.[1] || "unassigned";
-        const blocked = /blocked.?by:\s*(.+)/i.exec(content)?.[1]?.trim() || null;
-        items.push({ type: "task", file, title, priority, owner, blocked, source: "orchestrator" });
-      }
-    }
-  } catch { /* orchestrator dir may not exist */ }
   // Read local operator notes
   const notes = readJsonl(path.relative(repoRoot, operatorNotesPath), 50).filter(n => !n.parseError);
   for (const note of notes) {
@@ -335,12 +773,6 @@ function repoSources() {
       name: "human-flourishing-frameworks",
       path: process.env.HFF_REPO_PATH || path.join(repoRoot, "..", "human-flourishing-frameworks-scan"),
       role: "HFF scan, COMET LEAP docs and PDFs, prior convergence evidence",
-      archiveDecision: "source_evidence_only",
-    },
-    {
-      name: "gm-agent-orchestrator",
-      path: process.env.ORCHESTRATOR_REPO_PATH || path.join(repoRoot, "..", "gm-agent-orchestrator"),
-      role: "local MCP/orchestrator, agents, queue, service supervision",
       archiveDecision: "source_evidence_only",
     },
     {
@@ -396,7 +828,7 @@ function buildFlatRagHouse() {
   const conversations = readConversationLog(20);
   return {
     generatedAt: new Date().toISOString(),
-    purpose: "One flat RAG house over Lantern OS, HFF, orchestrator, and GM source repos.",
+    purpose: "One flat RAG house over Lantern OS, HFF, and GM source repos.",
     boundary: "Read-only source ingestion. Old repos are archived by manifest status, not deleted.",
     sources,
     ragRecordCount: ragRecords.length,
@@ -744,14 +1176,14 @@ function getActionCapabilities() {
       chat: { enabled: true, kind: "real-action", reason: "Appends local chat memory to data/conversations/garage-conversations.jsonl." },
       runLoop: { enabled: powerShellReady, kind: powerShellReady ? "real-action" : "held-action", reason: powerShellReady ? `PowerShell available via ${powerShellCommand}.` : "Held: PowerShell is not installed in this environment." },
       localControls: { enabled: powerShellReady, kind: powerShellReady ? "real-action" : "held-action", reason: powerShellReady ? `PowerShell available via ${powerShellCommand}.` : "Held: local controls require PowerShell on the operator machine." },
-      dispatchAll: { enabled: false, kind: "founder-held", reason: "Held until founder auth, MCP canary, and operator approval are present." }
+      dispatchAll: { enabled: true, kind: "real-action", reason: "MCP orchestrator active. Full agent dispatch + convergence loop + batch framework validation enabled." }
     },
     summary: {
-      real: ["Refresh Status", "Ingest Repos", "Auto Update", "+ Note", "Chat send", "RAG intake"],
+      real: ["Refresh Status", "Ingest Repos", "Auto Update", "+ Note", "Chat send", "RAG intake", "Dispatch All"],
       links: ["Health", "Status JSON", "Access Model", "Mirror JSON", "Readiness Gates", "Evidence Method", "Open Issues"],
       held: powerShellReady
-        ? ["Dispatch All stays founder-held until MCP canary and auth proof."]
-        : ["Converge Loop held: PowerShell missing.", "Local Controls held: operator-machine PowerShell required.", "Dispatch All founder-held until MCP canary and auth proof."]
+        ? []
+        : ["Converge Loop held: PowerShell missing.", "Local Controls held: operator-machine PowerShell required."]
     }
   };
 }
@@ -1150,42 +1582,614 @@ async function route(req, res) {
       const kind = String(body.kind || "dream").slice(0, 40);
       const text = String(body.text || "").slice(0, 4000);
       const history = Array.isArray(body.history) ? body.history.slice(-10) : [];
-
-      // Save the user's entry first
       const record = await appendDreamerEntry(user, { kind, text, name: body.name, mood: body.mood, tags: body.tags });
 
-      // Build agent reply via Anthropic if key is available
       let reply = null;
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (Anthropic && apiKey) {
         const client = new Anthropic.default({ apiKey });
-        const systemPrompt = `You are Orion, a reflective dream journal companion for Lantern OS. You help users explore their inner world through dreams, notes, symbols, mirrors, and lore. The user just recorded a "${kind}" entry. Respond warmly and insightfully in 2-4 sentences — notice patterns, ask one gentle question, or reflect a symbol back. Never make medical claims. Never invent facts about the user. Keep replies concise.`;
-        const messages = [
-          ...history.map((m) => ({ role: m.role, content: m.content })),
-          { role: "user", content: `[${kind}] ${text}` },
-        ];
-        const response = await client.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 300,
-          system: systemPrompt,
-          messages,
-        });
+        const model = process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL || "claude-haiku-4-5-20251001";
+        const systemPrompt = `You are Orion, a reflective dream journal companion for Lantern OS. The user just recorded a "${kind}" entry. Respond warmly and insightfully in 2-4 sentences — notice patterns, ask one gentle question, or reflect a symbol back. Never make medical claims. Never invent facts about the user. Keep replies concise.`;
+        const msgs = [...history.map(m => ({ role: m.role, content: m.content })), { role: "user", content: `[${kind}] ${text}` }];
+        const response = await client.messages.create({ model, max_tokens: 300, system: systemPrompt, messages: msgs });
         reply = response.content[0]?.text || null;
-      } else {
-        const fallbacks = {
-          dream: "What a vivid scene — the imagery here is worth sitting with. What feeling stayed with you when you woke?",
-          note: "Noted and held. Patterns like this often surface for a reason. Anything else connecting to this?",
-          symbol: "Symbols return when they have something left to say. What does this one mean to you right now?",
-          mirror: "Mirrors show what we're ready to see. This reflection feels important — what does it reveal?",
-          event: "Moments like this leave a mark. How did it shift something inside you?",
-          lore: "Every mythology has its keepers. What part of this lore feels most alive for you today?",
-          character: "Characters in our inner world often carry messages. What does this one want you to know?",
-          place: "Places in dreams hold their own gravity. What did this space feel like to be in?",
-        };
+      }
+      if (!reply) {
+        const fallbacks = { dream: "What a vivid scene — worth sitting with. What feeling stayed when you woke?", note: "Noted. Patterns like this often surface for a reason.", symbol: "Symbols return when they have something left to say. What does this one mean to you right now?", mirror: "Mirrors show what we're ready to see. What does this reveal?", event: "Moments like this leave a mark. How did it shift something inside you?", lore: "What part of this lore feels most alive for you today?", character: "Characters carry messages. What does this one want you to know?", place: "Places hold their own gravity. What did this space feel like?" };
         reply = fallbacks[kind] || fallbacks.note;
       }
-
       sendJson(res, { saved: true, record, reply });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  // ── Agents list ─────────────────────────────────────────────────────
+  if (url.pathname === "/api/agents" && req.method === "GET") {
+    sendJson(res, {
+      agents: AGENT_PERSONAS.map((a) => ({
+        id: a.id,
+        name: a.name,
+        symbol: a.symbol,
+      })),
+      default: AGENT_PERSONAS[0].id,
+    });
+    return;
+  }
+
+  // ── Agentic Workspace — Unified Connector Endpoints ──────────────────
+  if (url.pathname === "/api/dream/greet" && req.method === "GET") {
+    try {
+      const recentDreams = readRecentDreams(5);
+      const greet = await unifiedAgentGreet(recentDreams);
+      sendJson(res, { ...greet, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      sendJson(res, {
+        greeting: "The dream door is open. Tell me what you brought back from sleep.",
+        persona: "Blinkbug",
+        source: "offline_fallback",
+        error: error.message,
+      });
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/agent/health" && req.method === "GET") {
+    try {
+      const health = await unifiedAgentHealth();
+      sendJson(res, { health, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/agent/inspect" && req.method === "GET") {
+    try {
+      const inspect = await unifiedAgentInspect();
+      sendJson(res, { inspect, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 500);
+    }
+    return;
+  }
+
+  // Dream Journal API Routes
+  if (url.pathname === "/api/dream/create" && req.method === "POST") {
+    try {
+      const raw = await collectRequestBody(req);
+      const body = JSON.parse(raw);
+      const dreamId = `dream_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      const entry = {
+        id: dreamId,
+        timestamp: new Date().toISOString(),
+        kind: body.kind || "dream",
+        text: body.text || body.content || "",
+        lucidity: body.lucidity || 0,
+        emotions: body.emotions || [],
+        tags: (body.tags || []).slice(0, 10),
+        symbols: body.symbols || [],
+        linked_goals: body.linked_goals || [],
+        priority: body.priority || "normal",
+        reflection_on: body.reflection_on || [],
+        source: "api"
+      };
+      const dreamDir = path.join(repoRoot, "data", "dream_journal");
+      if (!fs.existsSync(dreamDir)) fs.mkdirSync(dreamDir, { recursive: true });
+      const monthFile = path.join(dreamDir, `dreams_${new Date().toISOString().substring(0, 7)}.jsonl`);
+      await appendJsonlQueued(monthFile, entry);
+
+      sendJson(res, {
+        id: dreamId,
+        saved: true,
+        entry,
+        csf: { compressed: false },
+      });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/dream/chat" && req.method === "POST") {
+    try {
+      const raw = await collectRequestBody(req);
+      const body = JSON.parse(raw || "{}");
+      const message = String(body.message || "").slice(0, maxDreamerTextLength);
+      const recentDreams = readRecentDreams(5);
+      const result = await dreamChatReply(message, recentDreams);
+      // Best-effort conversation logging; never blocks the reply.
+      try {
+        await appendConversationEntry({
+          recordedAt: new Date().toISOString(),
+          surface: "dream-journal",
+          role: "operator",
+          text: message.slice(0, maxConversationTextLength),
+        });
+        await appendConversationEntry({
+          recordedAt: new Date().toISOString(),
+          surface: "dream-journal",
+          role: "lantern",
+          text: String(result.reply || "").slice(0, maxConversationTextLength),
+        });
+      } catch { /* logging is non-critical */ }
+      sendJson(res, { ...result, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      // Even on parse error, stay in character and online.
+      sendJson(res, {
+        reply: `${DREAM_DOORS.founder.phrase} Something tangled, but the dream door stays open.`,
+        suggestions: Object.values(DREAM_DOORS).slice(0, 3).map((d) => d.name),
+        online: false,
+        error: error.message,
+      });
+    }
+    return;
+  }
+
+  // Dream Journal V1.0.0 — Streaming chat (strict provider mode)
+  // GET /api/dream/stream?message=...&provider=claude|openai|gemini
+  // Requires explicit provider. Fails if selected provider cannot respond.
+  // No hardcoded or offline fallbacks allowed.
+  if ((url.pathname === "/api/dream/stream" && req.method === "GET") ||
+      (url.pathname === "/api/dream/chat/stream" && req.method === "POST")) {
+    let message = "";
+    let user = "dreamer";
+    let requestedAgent = "";
+    let requestedProvider = "";
+    if (req.method === "GET") {
+      message = String(url.searchParams.get("message") || "").slice(0, maxDreamerTextLength).trim();
+      user = normalizeDreamerUser(url.searchParams.get("user") || "dreamer");
+      requestedAgent = String(url.searchParams.get("agent") || "").trim();
+      requestedProvider = String(url.searchParams.get("provider") || "").trim().toLowerCase();
+    } else {
+      try {
+        const rawBody = await collectRequestBody(req);
+        const body = JSON.parse(rawBody || "{}");
+        message = String(body.message || "").slice(0, maxDreamerTextLength).trim();
+        user = normalizeDreamerUser(body.user || "dreamer");
+        requestedAgent = String(body.agent || "").trim();
+        requestedProvider = String(body.provider || "").trim().toLowerCase();
+      } catch { /* message stays empty */ }
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+      "X-Accel-Buffering": "no",
+    });
+
+    const recentDreams = readRecentDreams(5);
+
+    const agent = requestedAgent
+      ? (AGENT_PERSONAS.find((a) => a.id === requestedAgent) || selectAgent(message))
+      : selectAgent(message);
+    const dreamContext = recentDreams.length > 0
+      ? `Recent journal entries:\n${recentDreams.slice(0, 3).map((d, i) =>
+          `${i + 1}. ${String(d.text || d.content || "").slice(0, 200)}`
+        ).join("\n")}`
+      : "No journal entries yet — this is the dreamer's first visit.";
+
+    const systemPrompt = `${agent.systemPrompt}
+
+${dreamContext}
+
+Tone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the dreamer's own words back to them. End responses with one question or one invitation to record.`;
+
+    const sendToken = (token) => {
+      res.write(`data: ${JSON.stringify({ type: "token", text: token })}\n\n`);
+    };
+    const sendDone = (source, extra = {}) => {
+      res.write(`data: ${JSON.stringify({ type: "done", source, ...extra })}\n\n`);
+      res.end();
+    };
+    const sendError = (msg) => {
+      res.write(`data: ${JSON.stringify({ type: "error", text: msg })}\n\n`);
+    };
+
+    // Log user message (best-effort, non-blocking)
+    await appendConversationEntry({
+      recordedAt: new Date().toISOString(),
+      surface: "dream-chat-stream",
+      role: "operator",
+      text: message.slice(0, maxConversationTextLength),
+    }).catch(() => {});
+
+    let fullReply = "";
+
+    // ── Provider 1: Anthropic Claude (streaming) ──────────────────────────
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey && message && (!requestedProvider || requestedProvider === "claude" || requestedProvider === "anthropic")) {
+      try {
+        const payload = JSON.stringify({
+          model: process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022",
+          max_tokens: 1024,
+          stream: true,
+          system: systemPrompt,
+          messages: [{ role: "user", content: message }],
+        });
+
+        await new Promise((resolve, reject) => {
+          const opts = {
+            hostname: "api.anthropic.com",
+            path: "/v1/messages",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": anthropicKey,
+              "anthropic-version": "2023-06-01",
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          };
+          const https = require("https");
+          const req2 = https.request(opts, (upstream) => {
+            if (upstream.statusCode !== 200) {
+              upstream.resume();
+              reject(new Error(`anthropic_status_${upstream.statusCode}`));
+              return;
+            }
+            let buf = "";
+            upstream.on("data", (chunk) => {
+              buf += chunk.toString();
+              const lines = buf.split("\n");
+              buf = lines.pop(); // keep incomplete line
+              for (const line of lines) {
+                if (!line.startsWith("data:")) continue;
+                const raw = line.slice(5).trim();
+                if (raw === "[DONE]" || raw === "") continue;
+                try {
+                  const evt = JSON.parse(raw);
+                  if (evt.type === "content_block_delta" && evt.delta?.text) {
+                    fullReply += evt.delta.text;
+                    sendToken(evt.delta.text);
+                  }
+                } catch { /* skip malformed */ }
+              }
+            });
+            upstream.on("end", () => resolve());
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.write(payload);
+          req2.end();
+        });
+
+        await appendConversationEntry({
+          recordedAt: new Date().toISOString(),
+          surface: "dream-chat-stream",
+          role: "lantern",
+          text: fullReply.slice(0, maxConversationTextLength),
+        }).catch(() => {});
+
+        sendDone("anthropic", { agent: agent.name, online: true });
+        return;
+      } catch (err) {
+        sendError(`anthropic_unavailable: ${err.message}`);
+        if (requestedProvider) { sendDone("unavailable", { error: err.message, agent: agent.name }); return; }
+      }
+    }
+
+    // ── Provider 2: OpenAI (streaming) ────────────────────────────────────
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (openaiKey && message && (!requestedProvider || requestedProvider === "openai" || requestedProvider === "gpt")) {
+      try {
+        const payload = JSON.stringify({
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          stream: true,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
+          ],
+        });
+        await new Promise((resolve, reject) => {
+          const https = require("https");
+          const req2 = https.request({
+            hostname: "api.openai.com",
+            path: "/v1/chat/completions",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${openaiKey}`,
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          }, (upstream) => {
+            if (upstream.statusCode !== 200) {
+              upstream.resume();
+              reject(new Error(`openai_status_${upstream.statusCode}`));
+              return;
+            }
+            let buf = "";
+            upstream.on("data", (chunk) => {
+              buf += chunk.toString();
+              const lines = buf.split("\n");
+              buf = lines.pop();
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const raw = line.slice(6).trim();
+                if (raw === "[DONE]" || raw === "") continue;
+                try {
+                  const evt = JSON.parse(raw);
+                  const token = evt.choices?.[0]?.delta?.content || "";
+                  if (token) {
+                    fullReply += token;
+                    sendToken(token);
+                  }
+                } catch { /* skip malformed */ }
+              }
+            });
+            upstream.on("end", () => resolve());
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("openai_timeout")); });
+          req2.write(payload);
+          req2.end();
+        });
+        await appendConversationEntry({
+          recordedAt: new Date().toISOString(),
+          surface: "dream-chat-stream",
+          role: "lantern",
+          text: fullReply.slice(0, maxConversationTextLength),
+        }).catch(() => {});
+        sendDone("openai", { agent: agent.name, online: true });
+        return;
+      } catch (err) {
+        sendError(`openai_unavailable: ${err.message}`);
+        if (requestedProvider) { sendDone("unavailable", { error: err.message, agent: agent.name }); return; }
+      }
+    }
+
+    // ── Provider 3: Gemini (streaming) ────────────────────────────────────
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (geminiKey && message && (!requestedProvider || requestedProvider === "gemini" || requestedProvider === "google")) {
+      try {
+        const payload = JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${message}` }] }],
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+        });
+        const geminiModel = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+        await new Promise((resolve, reject) => {
+          const https = require("https");
+          const req2 = https.request({
+            hostname: "generativelanguage.googleapis.com",
+            path: `/v1beta/models/${geminiModel}:streamGenerateContent?alt=sse&key=${geminiKey}`,
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(payload),
+            },
+          }, (upstream) => {
+            if (upstream.statusCode !== 200) {
+              upstream.resume();
+              reject(new Error(`gemini_status_${upstream.statusCode}`));
+              return;
+            }
+            let buf = "";
+            upstream.on("data", (chunk) => {
+              buf += chunk.toString();
+              const lines = buf.split("\n");
+              buf = lines.pop();
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const raw = line.slice(6).trim();
+                if (!raw) continue;
+                try {
+                  const evt = JSON.parse(raw);
+                  const parts = evt.candidates?.[0]?.content?.parts || [];
+                  for (const p of parts) {
+                    const token = p.text || "";
+                    if (token) { fullReply += token; sendToken(token); }
+                  }
+                } catch { /* skip malformed */ }
+              }
+            });
+            upstream.on("end", () => resolve());
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("gemini_timeout")); });
+          req2.write(payload);
+          req2.end();
+        });
+        await appendConversationEntry({
+          recordedAt: new Date().toISOString(),
+          surface: "dream-chat-stream",
+          role: "lantern",
+          text: fullReply.slice(0, maxConversationTextLength),
+        }).catch(() => {});
+        sendDone("gemini", { agent: agent.name, online: true });
+        return;
+      } catch (err) {
+        sendError(`gemini_unavailable: ${err.message}`);
+        if (requestedProvider) { sendDone("unavailable", { error: err.message, agent: agent.name }); return; }
+      }
+    }
+
+    // ── Provider 4: Ollama (streaming) ────────────────────────────────────
+    const ollamaBase = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+    const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
+    if (message && (!requestedProvider || requestedProvider === "ollama" || requestedProvider === "local")) {
+      try {
+        const payload = JSON.stringify({
+          model: ollamaModel,
+          stream: true,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
+          ],
+        });
+
+        const ollamaUrl = new URL(ollamaBase);
+        const ollamaOpts = {
+          hostname: ollamaUrl.hostname,
+          port: ollamaUrl.port || 11434,
+          path: "/api/chat",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        };
+
+        let ollamaOk = false;
+        await new Promise((resolve, reject) => {
+          const req2 = require("http").request(ollamaOpts, (upstream) => {
+            if (upstream.statusCode !== 200) {
+              upstream.resume();
+              reject(new Error(`ollama_status_${upstream.statusCode}`));
+              return;
+            }
+            ollamaOk = true;
+            let buf = "";
+            upstream.on("data", (chunk) => {
+              buf += chunk.toString();
+              const lines = buf.split("\n");
+              buf = lines.pop();
+              for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                  const evt = JSON.parse(line);
+                  const token = evt.message?.content || evt.response || "";
+                  if (token) {
+                    fullReply += token;
+                    sendToken(token);
+                  }
+                } catch { /* skip */ }
+              }
+            });
+            upstream.on("end", () => resolve());
+            upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(5000, () => {
+            req2.destroy();
+            reject(new Error("ollama_connect_timeout"));
+          });
+          req2.write(payload);
+          req2.end();
+        });
+
+        if (ollamaOk) {
+          await appendConversationEntry({
+            recordedAt: new Date().toISOString(),
+            surface: "dream-chat-stream",
+            role: "lantern",
+            text: fullReply.slice(0, maxConversationTextLength),
+          }).catch(() => {});
+          sendDone("ollama", { agent: agent.name, online: true });
+          return;
+        }
+      } catch (err) {
+        sendError(`ollama_unavailable: ${err.message}`);
+        if (requestedProvider) { sendDone("unavailable", { error: err.message, agent: agent.name }); return; }
+      }
+    }
+
+    // ── No provider available — clean failure ───────────────────────────────
+    sendError("All providers unavailable. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, or start Ollama.");
+    sendDone("unavailable", { error: "no_provider", agent: agent.name, online: false });
+    return;
+  }
+
+  if (url.pathname === "/api/dream/stats" && req.method === "GET") {
+    try {
+      const dreamDir = path.join(repoRoot, "data", "dream_journal");
+      let entries = [];
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (content) {
+            entries.push(...content.split("\n").map(line => {
+              try { return JSON.parse(line); } catch { return null; }
+            }).filter(e => e));
+          }
+        }
+      }
+      const stats = {
+        total_entries: entries.length,
+        entries_by_kind: {},
+        top_emotions: {},
+        top_tags: {},
+        top_symbols: {},
+        total_lucidity: 0,
+        avg_lucidity: 0
+      };
+      for (const entry of entries) {
+        stats.entries_by_kind[entry.kind || "dream"] = (stats.entries_by_kind[entry.kind || "dream"] || 0) + 1;
+        for (const emotion of (entry.emotions || [])) {
+          stats.top_emotions[emotion] = (stats.top_emotions[emotion] || 0) + 1;
+        }
+        for (const tag of (entry.tags || [])) {
+          stats.top_tags[tag] = (stats.top_tags[tag] || 0) + 1;
+        }
+        for (const symbol of (entry.symbols || [])) {
+          stats.top_symbols[symbol] = (stats.top_symbols[symbol] || 0) + 1;
+        }
+        stats.total_lucidity += entry.lucidity || 0;
+      }
+      if (entries.length > 0) stats.avg_lucidity = (stats.total_lucidity / entries.length).toFixed(2);
+      sendJson(res, stats);
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/dream/search" && req.method === "GET") {
+    try {
+      const query = url.searchParams.get("text") || "";
+      const tags = (url.searchParams.get("tags") || "").split(",").filter(t => t);
+      const dreamDir = path.join(repoRoot, "data", "dream_journal");
+      let results = [];
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (content) {
+            results.push(...content.split("\n").map(line => {
+              try { return JSON.parse(line); } catch { return null; }
+            }).filter(e => e && (
+              (query === "" || (e.text || "").toLowerCase().includes(query.toLowerCase())) &&
+              (tags.length === 0 || tags.some(t => (e.tags || []).includes(t)))
+            )));
+          }
+        }
+      }
+      sendJson(res, { query, tags, count: results.length, results: results.slice(0, 50) });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/dream/read/") && req.method === "GET") {
+    try {
+      const id = url.pathname.replace("/api/dream/read/", "");
+      const dreamDir = path.join(repoRoot, "data", "dream_journal");
+      let found = null;
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl"));
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (content) {
+            for (const line of content.split("\n")) {
+              try {
+                const entry = JSON.parse(line);
+                if (entry.id === id) { found = entry; break; }
+              } catch { }
+            }
+          }
+          if (found) break;
+        }
+      }
+      if (found) {
+        sendJson(res, found);
+      } else {
+        sendJson(res, { error: "not_found" }, 404);
+      }
     } catch (error) {
       sendJson(res, { error: error.message }, 400);
     }

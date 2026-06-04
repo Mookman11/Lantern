@@ -1,262 +1,125 @@
 # Lantern OS
 
-Status: pre-v1.0.0 staging  
-Scope: local-first operating repo, surfaces, reports, manifests, and release gates  
-Style spine: `docs/ORION-MOOKMANREPORT4-STYLE.md`  
-Operator boundary: local MCP status, dirty worktrees, private folders, boot mutation, and live worker counts require operator-machine evidence
+[![CI](https://github.com/alex-place/lantern-os/actions/workflows/ci.yml/badge.svg)](https://github.com/alex-place/lantern-os/actions/workflows/ci.yml)
+[![Deploy](https://github.com/alex-place/lantern-os/actions/workflows/deploy.yml/badge.svg)](https://github.com/alex-place/lantern-os/actions/workflows/deploy.yml)
+[![Validate Dream Journal](https://github.com/alex-place/lantern-os/actions/workflows/validate-dream-journal.yml/badge.svg)](https://github.com/alex-place/lantern-os/actions/workflows/validate-dream-journal.yml)
 
----
+Local-first OS cockpit built by Alex Place.
 
-## Open Lantern
+**Current Focus (2026-06):** Dream Journal V1.0.0 + single container (web + Discord bot).
 
-Primary local dashboard:
+## What it does today
 
-```text
-http://127.0.0.1:4177
+| Component | Description |
+|-----------|-------------|
+| **Dream Journal** | Freeform RP chat interface. No hardcoded fields — just talk. Chat at top, fixed input bar at bottom. Data stored in browser localStorage with JSONL export. |
+| **Lantern Garage server** | Node.js HTTP server (`apps/lantern-garage/server.js`). Serves the Dream Journal UI and REST API on port 4177. |
+| **Imagniverse / status cube** | 4D routing matrix for Lantern OS state — a routing and inspection interface, not physical hardware. Lives in `surfaces/`. |
+| **Payment bridge** | Stub for Stripe invoice workflows (`apps/lantern-garage/payment-bridge/`). Not connected to a live Stripe account. |
+| **CSF / CADD** | Convergence-Fitted Searchable Binary Archive format (v1.0 spec) + Context Archive for Dream Data. Used for memory exports and symbolic data compression. |
+| **GitHub Pages / Netlify static UI** | Static surfaces deployed from `apps/lantern-garage/public/` (pitch, proof, pricing, wish-door, dream-journal). |
+
+## What is NOT in scope
+
+- No live trading or financial execution.
+- No production Stripe integration (payment bridge is a stub).
+- No actual outreach automation (outreach scripts are drafts only).
+- No cloud data storage — all journal data stays on your machine.
+
+## Local Development URLs
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Lantern Garage** | http://127.0.0.1:4177 | Main web server |
+| **Dream Journal (Orion)** | http://127.0.0.1:4177/dream-chat-orion.html | Clean V1 chat interface |
+| **Dream Journal (Classic)** | http://127.0.0.1:4177/dream-chat.html | Original chat UI |
+
+## How to run
+
+### Prerequisites
+
+```
+node --version   # v20 or higher required
 ```
 
-This is the front door for interaction: first-class chat, RAG memory, wallet
-truth, local controls, outreach, reports, devices, diagnostics, cloud mirrors,
-and Arc Reactor Mining Lab converge here. No setup screen or secondary launcher
-is required when the dashboard is already running. No separate mining dashboard,
-no shortcut sprawl, no fake surfaces.
+### Local (default)
 
----
-
-## Simple Answer
-
-Lantern OS is the clean control plane for the Windows/local-first Lantern line.
-
-The repo is not a dump of every prior artifact. It is the place where promoted work becomes readable, validated, public-safe, and ready for the next operator step.
-
-Repo = evidence store. Surface = fast access. Together they reduce confusion.
-
----
-
-## What It Actually Does
-
-| Lane | Purpose | Current state |
-|---|---|---|
-| Local cockpit | Open operator surfaces for app, garage, RAG, wallet, boot gates, and reports | present |
-| RAG Dollhouse | Keep source-labeled flat memory and receipts | present |
-| Release gates | Prevent v1 claims before proof and operator approval | active |
-| MCP split | Separate remote docs from local-only health and worker proof | active |
-| Agent contact | Tell agents what to inspect first and what to hold | active |
-| Orion style | Convert flat docs and CSS into human-readable technical sheets | active style pass |
-
----
-
-## Evidence / Source Discipline
-
-Source repos remain authoritative until promoted:
-
-```text
-C:\tmp\human-flourishing-frameworks-scan
-C:\Users\alexp\Documents\gm-agent-orchestrator
+```bash
+node apps/lantern-garage/server.js
+# opens at http://127.0.0.1:4177
 ```
 
-Remote control plane:
+Or with npm:
 
-```text
-https://github.com/alex-place/lantern-os
+```bash
+npm start --prefix apps/lantern-garage
 ```
 
-Core maps:
+### Cloud (Railway)
 
-```text
-manifests/foundry-shareholder-repos.md
-docs/wiki/ALEX-PLACE.md
-docs/ORION-MOOKMANREPORT4-STYLE.md
+Railway auto-deploys from `master`. The `railway.json` and `cloud-server.js` handle the cloud entrypoint. Set `PORT` in Railway environment variables; the server binds to `0.0.0.0` when `PORT` is present.
+
+### Static UI (GitHub Pages)
+
+Static surfaces are deployed from the `gh-pages` branch via the GitHub Actions workflow in `.github/workflows/`.
+
+## Running Services
+
+| Service | Port | Status | URL | Process |
+|---------|------|--------|-----|---------|
+| **Lantern Garage** | `4177` | Running | http://127.0.0.1:4177 | `node apps/lantern-garage/server.js` |
+| **GPT Web API** | `3000` | Running | http://127.0.0.1:3000 | `node integrations/gm-agent-orchestrator/tools/gpt-web-api/server.js` |
+| **MCP Server** | `8771` | Running | http://127.0.0.1:8771 | `python src/mcp_server/server.py` |
+| **Discord Radio Bot** | N/A | Needs token | — | `python apps/lantern-discord-radio/bot.py` |
+
+Start all:
+```bash
+# Terminal 1 — Garage
+npm start --prefix apps/lantern-garage
+
+# Terminal 2 — GPT Web API
+npm start --prefix integrations/gm-agent-orchestrator/tools/gpt-web-api
+
+# Terminal 3 — MCP Server
+python src/mcp_server/server.py
+
+# Terminal 4 — Discord Bot (requires token)
+python apps/lantern-discord-radio/bot.py
 ```
 
----
+## Deployed URLs
 
-## Proven / Held / Local-Only
+| Environment | URL | Description |
+|-------------|-----|-------------|
+| **GitHub Pages** | https://alex-place.github.io/lantern-os/ | Static UI (pitch, proof, pricing, wish-door, dream-journal) |
+| **Repository** | https://github.com/alex-place/lantern-os | Source code, issues, PRs |
 
-| State | Meaning |
-|---|---|
-| Proven in repo | File exists here and can be reviewed through GitHub or local checkout |
-| Held local-only | Requires the operator machine: MCP health, dirty worktrees, private folders, local queue/active/failed state, live worker counts |
-| Design contract | Describes intended system shape, not live proof |
-| Public-safe | Avoids private identity, raw dumps, unsafe fabrication details, and fake live-state claims |
+## IDE Integration (Windsurf / Cascade MCP)
 
-Nothing becomes v1.0.0 merely because it exists elsewhere. Promotion requires the convergence loop in `docs/CONVERGENCE-LOOP.md`.
+The Lantern OS MCP server is linked to Windsurf/Cascade via a stdio bridge.
 
----
+1. Start the MCP server (port 8771):
+   ```bash
+   python src/mcp_server/server.py
+   ```
+2. Windsurf reads `.windsurf/mcp.json` and connects through `scripts/mcp_stdio_bridge.py`.
+3. Exposed tools: `queue_status`, `task_intake`, `dispatch_work`, `boot_check`, `list_skills`, `get_status`, `fleet_status`.
 
-## Initial Surfaces
+## User Guides
 
-| Surface | Path |
-|---|---|
-| Canonical Lantern dashboard | `http://127.0.0.1:4177` |
-| Lantern Garage app | `apps/lantern-garage/` |
-| Cloud mirror manifest | `manifests/cloud-mirrors.json` |
-| Redirected legacy surfaces | `surfaces/shareholder-index/index.html`, `surfaces/tony-garage/index.html`, `surfaces/lantern-desktop/index.html` |
-| Agent initial-contact surface | `manifests/LANTERN-OS-AGENT-INITIAL-CONTACT-SURFACES.md` |
-| Arc Reactor status | `data/arc-reactor/status.json` |
-| Arc Reactor Mining Lab | `docs/ARC-REACTOR-MINING-LAB.md` |
-| Flat Lantern RAG Dollhouse | `skills/lantern-rag-dollhouse/references/LANTERN-OS-RAG-DOLLHOUSE.flat.md` |
-| Orion / Mookman Report 4 style | `docs/ORION-MOOKMANREPORT4-STYLE.md` |
+| Workstream | Guide | Description |
+|------------|-------|-------------|
+| **Tesseract Convergence** | `manifests/TESSERACT-ARCHITECTURE.md` | 4-layer hypercube (Surface, Interface, Convergence, Core) — personas, slots, connector, dollhouse CSF, convergence engine, inspector |
+| **Unified Agent Connector** | `src/unified_agent_connector.py` docstring | Multi-provider AI streaming with health checks — OpenAI, Anthropic, Google, Mistral |
+| **CSF Dollhouse** | `src/cadd_dollhouse_csf.py` docstring | Convergence-Fitted Searchable Binary format for memory archives and segment building |
+| **Agent Inspector** | `scripts/agent_inspector.py` docstring | Health and self-monitoring daemon with tesseract layer checks |
+| **MCP Connector** | `docs/MCP-CONNECTOR.md` | Local-first MCP connector, RAG-house indexing, safety contract |
+| **Dream Journal** | `apps/lantern-garage/public/dream-journal.html` | Freeform RP chat interface with localStorage + JSONL export |
 
----
+## Backlog
 
-## One Dashboard
+Linear is the source of truth for the backlog. GitHub Issues are intake only and may lag behind Linear.
 
-Lantern OS uses one dashboard with internal cards and formatted document views.
-Do not add a new public dashboard for every product lane. Internal cards/routes
-should be backed by real files, validation receipts, or live APIs.
+## Contributing
 
-The dashboard should always make chat first-class, keep cloud tunnel/mirror
-status visible, and route Markdown through the formatted Lantern reader instead
-of dropping operators into raw text docs.
-
----
-
-## Cloud Mirrors
-
-`master` is the deploy branch for the Render mirror. Cloud URLs are mirrors of
-the same Lantern OS dashboard, not separate products or extra dashboards.
-
-Mirror policy:
-
-- Local primary: `http://127.0.0.1:4177`
-- Render/service mirrors live in `manifests/cloud-mirrors.json`
-- Render uses `apps/lantern-garage/render-server.js`
-- Local Windows uses `apps/lantern-garage/server.js`
-- A mirror can be listed as `candidate`, `configured`, or `verified`; the UI
-  must show that status plainly
-
----
-
-## Brand Guidelines
-
-Lantern OS should feel like a local operator cockpit: calm, evidence-backed,
-warm, and usable under pressure.
-
-Brand rules:
-
-- One front door: use `http://127.0.0.1:4177` as the local interaction URL.
-- Local first: default to localhost, repo-backed files, and explicit operator
-  control before cloud or tunnels.
-- Truth first: cards appear only when backed by files, validation receipts, or
-  live APIs.
-- No fake dashboards: use one dashboard with internal cards/routes.
-- No secret collection: never ask for seed phrases, private keys, Apple ID
-  credentials, exchange passwords, or hidden signing permissions.
-- Plain language: say what is ready, held, blocked, or experimental.
-- Visual style: light cockpit surface, deep ink text, Lantern teal `#08756f`,
-  steel blue `#1e5f89`, amber warnings `#9f5a07`, and rose risk `#9a3d55`.
-
----
-
-## Arc Reactor Mining Lab
-
-Mining Lab is a safe, legal, local-first package for inventorying owned
-hardware, routing hardware into viable lanes, validating wallets in read-only
-mode, and producing receipts.
-
-Mining boundaries:
-
-- CPU routes to Monero learning/P2Pool checks.
-- GPU routes stay experimental for RVN or ETC.
-- BTC/LTC/DOGE/KAS require owned or separately justified dedicated hardware.
-- ETH is wallet/claim/read-only only, not a mining lane.
-- No wallet cracking, brute force, hidden signing, or fake one-shot ROI claims.
-
----
-
-## Release Rule
-
-Before adding new surfaces, run the loop and fix the first 2-4 open issues it finds. Expansion is allowed only after the leading blockers are handled or explicitly marked held by the operator.
-
-Fleet execution uses the 12x3 convergence-ring contract in `manifests/CONVERGENCE-LOOP-AGENT-FLEET.md`: 12 loop steps, 3 agent roles per step, 36 designed ring slots, and a 64-worker elastic pool target. This is a design and receipt contract, not live-worker proof.
-
-MCP work is split by `manifests/MCP-WORK-SPLIT.md`. Remote docs can validate contracts and receipts, but local-only MCP health, dirty worktrees, private folders, and live worker counts still require operator-machine evidence.
-
----
-
-## Receptionist Routing
-
-Use `docs/LANTERN-OS-RECEPTIONIST-CALL-LIST.md` for public-safe call routing. It uses organization switchboards and public program contacts only. Do not add personal phone numbers, scraped direct dials, or unverified private numbers.
-
----
-
-## Printable Reports
-
-Quick front page:
-
-```text
-artifacts/SUPER-JARVIS-LANTERN-OS-FRONT-PAGE.pdf
-```
-
-Master convergence PDF:
-
-```text
-artifacts/COMET-LEAP-TOKEN-BURN-REVENUE-CONVERGENCE-v1.pdf
-```
-
----
-
-## Non-Goals For This Repo
-
-- No unattended bootloader edits.
-- No partition or disk mutation scripts.
-- No unreviewed generated artifact dump.
-- No claim that v1.0.0 is ready before the operator says so.
-- No skeleton-only milestones.
-- No treating offline/local/server-farm Foundry tokens as cloud-metered, "Lite", or per-token rated.
-- No raw filepath spam above the first human-relevant explanation.
-
----
-
-## First Command
-
-Run the convergence loop:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LanternConvergenceLoop.ps1
-```
-
-Validate the convergence fleet count contract:
-
-```powershell
-python .\scripts\Test-ConvergenceAgentFleet.py --write-json .\manifests\validation\CONVERGENCE-FLEET-LATEST.json
-```
-
----
-
-## Garage Command
-
-Open the Movie 1 operator cockpit:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Open-TonyGarage.ps1
-```
-
-If the browser shows stale styling, reopen through the launcher or refresh with cache bypass. The garage surface cache-busts its CSS, image, and document links.
-
----
-
-## Local Controls Command
-
-Open the local control bridge and validate dashboard/MCP/Lantern health:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-LanternLocalControls.ps1
-```
-
----
-
-## Full-Stack App Command
-
-Start the in-house Lantern Garage app:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-LanternGarageApp.ps1
-```
-
-Then open:
-
-```text
-http://127.0.0.1:4177
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md).
