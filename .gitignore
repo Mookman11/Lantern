@@ -31,3 +31,9 @@ node_modules/
 
 # Discord subscriber data (local only, not in Git)
 data/discord/subscribers.json
+
+# Local runtime data (journals, dream logs — not committed)
+data/dream_journal/
+
+# Claude Code internal agent state
+.claude/worktrees/
