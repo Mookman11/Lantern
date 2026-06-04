@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy Static Mirror
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-static-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -15,14 +15,9 @@ permissions:
   pages: write
   id-token: write
 
-env:
-  PYTHON_VERSION: "3.11"
-  NODE_VERSION: "20"
-
 jobs:
-  # ── GitHub Pages ────────────────────────────────────────────────────────────
   deploy-pages:
-    name: Deploy to GitHub Pages
+    name: Deploy GitHub Pages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,31 +25,22 @@ jobs:
       - name: Build pages bundle
         run: |
           mkdir -p _site
-
-          # Copy surfaces (shareholder index, dashboards, etc.)
           cp -r surfaces/. _site/ 2>/dev/null || true
-
-          # Copy full Dream Journal public bundle into /dream path
           mkdir -p _site/dream
           cp -r apps/lantern-garage/public/. _site/dream/
-
-          # Root redirect → /dream
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <html>
           <head>
             <meta charset="utf-8">
-            <title>Lantern OS — Dream Journal</title>
+            <title>Lantern OS</title>
             <meta http-equiv="refresh" content="0;url=/lantern-os/dream/">
           </head>
           <body>
-            <p>Redirecting to <a href="/lantern-os/dream/">Dream Journal</a>…</p>
+            <p>Redirecting to <a href="/lantern-os/dream/">Dream Journal</a>.</p>
           </body>
           </html>
           HTML
-
-          echo "✓ Pages bundle ready"
-          ls -la _site/dream/
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v3
@@ -63,84 +49,32 @@ jobs:
           publish_dir: ./_site
           publish_branch: gh-pages
 
-      - name: Smoke test deployed URL
-        run: |
-          sleep 10
-          curl -sfL "https://alex-place.github.io/lantern-os/" \
-            -o /dev/null \
-            -w "HTTP %{http_code} — %{size_download} bytes\n" \
-            || echo "Smoke test skipped (DNS propagation may take time)"
-
-  # ── Railway ─────────────────────────────────────────────────────────────────
-  deploy-railway:
-    name: Trigger Railway deploy
-    runs-on: ubuntu-latest
-    env:
-      RAILWAY_DEPLOY_HOOK: ${{ secrets.RAILWAY_DEPLOY_HOOK }}
-    steps:
-      - name: Ping Railway deploy hook or skip
-        run: |
-          if [ -n "$RAILWAY_DEPLOY_HOOK" ]; then
-            echo "Triggering Railway deploy..."
-            curl -s -X POST "$RAILWAY_DEPLOY_HOOK" \
-              --fail-with-body \
-              && echo "✓ Railway deploy triggered" \
-              || echo "⚠ Railway webhook returned error (non-fatal)"
-          else
-            echo "⚠ RAILWAY_DEPLOY_HOOK secret not set."
-            echo "Railway auto-deploys via its GitHub integration when connected."
-            echo "Add secret RAILWAY_DEPLOY_HOOK to enable explicit webhook trigger."
-          fi
-        continue-on-error: true
-
-  # ── Smoke Test ────────────────────────────────────────────────────────────
   smoke-test:
-    name: Post-deploy smoke test
+    name: Smoke Test Static Mirror
     needs: [deploy-pages]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Smoke test static endpoints
         run: |
           python3 - << 'EOF'
-          import urllib.request, sys
+          import sys
+          import urllib.request
+
           urls = [
               "https://alex-place.github.io/lantern-os/",
               "https://alex-place.github.io/lantern-os/dream/",
-              "https://alex-place.github.io/lantern-os/dream/dream-chat-orion.html",
           ]
           ok = 0
           for url in urls:
               try:
-                  with urllib.request.urlopen(url, timeout=30) as r:
-                      if r.status == 200:
-                          print(f"OK  {url}")
+                  with urllib.request.urlopen(url, timeout=30) as response:
+                      if response.status == 200:
+                          print(f"OK {url}")
                           ok += 1
                       else:
-                          print(f"WARN {url} — status {r.status}")
-              except Exception as e:
-                  print(f"FAIL {url} — {e}")
-          print(f"\n{ok}/{len(urls)} endpoints reachable")
+                          print(f"WARN {url} status={response.status}")
+              except Exception as error:
+                  print(f"FAIL {url} {error}")
           if ok == 0:
               sys.exit(1)
           EOF
-
-  # ── Summary ─────────────────────────────────────────────────────────────────
-  summary:
-    name: Deploy summary
-    needs: [deploy-pages, deploy-railway, smoke-test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Print deploy targets
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "✓ GitHub Pages: https://alex-place.github.io/lantern-os/"
-          echo "✓ Dream Journal UI: https://alex-place.github.io/lantern-os/dream/"
-          echo "✓ Orion Chat: https://alex-place.github.io/lantern-os/dream/dream-chat-orion.html"
-          echo "✓ Railway: connect at https://railway.app (auto-deploy from master)"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

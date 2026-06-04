@@ -1,11 +1,13 @@
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Validate that CI/CD pipeline is healthy and responding
+    Validate that the CI/CD pipeline is release-ready.
 .DESCRIPTION
-    Batch job that validates the CI/CD pipeline. This allows batch jobs to verify
-    that CI/CD is working correctly. Part of mutual validation loop.
+    Batch job that validates the npm-first CI/CD surface. This allows batch
+    jobs to verify that CI, static publishing, and local launch expectations
+    still match the release contract.
 .PARAMETER GitHubRepo
-    GitHub repo in format "owner/repo"
+    GitHub repo in format "owner/repo".
 #>
 
 param(
@@ -21,29 +23,23 @@ $results = @{
 }
 
 Write-Host "`n[$timestamp] === CI/CD Pipeline Validation ===" -ForegroundColor Cyan
+Write-Host "Repo: $GitHubRepo" -ForegroundColor DarkGray
 
-# ============================================================================
-# 1. Check CI workflow files exist
-# ============================================================================
-Write-Host "[1/4] Checking CI/CD workflow files..." -NoNewline
+Write-Host "[1/4] Checking workflow files..." -NoNewline
 $ciWorkflow = ".github/workflows/ci.yml"
 $deployWorkflow = ".github/workflows/deploy.yml"
 
 if ((Test-Path $ciWorkflow) -and (Test-Path $deployWorkflow)) {
-    Write-Host " ✓" -ForegroundColor Green
-    $results.passed += "CI and Deploy workflows present"
+    Write-Host " OK" -ForegroundColor Green
+    $results.passed += "CI and deploy workflows present"
 } else {
-    Write-Host " ✗" -ForegroundColor Red
-    $results.failed += "Missing workflow files"
+    Write-Host " FAIL" -ForegroundColor Red
     $missingFiles = @()
     if (!(Test-Path $ciWorkflow)) { $missingFiles += $ciWorkflow }
     if (!(Test-Path $deployWorkflow)) { $missingFiles += $deployWorkflow }
-    $results.failed += "Missing: $($missingFiles -join ', ')"
+    $results.failed += "Missing workflow files: $($missingFiles -join ', ')"
 }
 
-# ============================================================================
-# 2. Validate workflow structure
-# ============================================================================
 Write-Host "[2/4] Validating workflow structure..." -NoNewline
 try {
     $ciContent = Get-Content $ciWorkflow -Raw
@@ -51,39 +47,44 @@ try {
 
     $ciHasJobs = $ciContent -match "jobs:"
     $deployHasSteps = $deployContent -match "steps:"
+    $deployPublishesPages = $deployContent -match "actions/deploy-pages"
 
-    if ($ciHasJobs -and $deployHasSteps) {
-        Write-Host " ✓" -ForegroundColor Green
+    if ($ciHasJobs -and $deployHasSteps -and $deployPublishesPages) {
+        Write-Host " OK" -ForegroundColor Green
         $results.passed += "Workflow structure valid"
     } else {
-        Write-Host " ✗" -ForegroundColor Red
-        $results.failed += "Workflow structure invalid"
+        Write-Host " FAIL" -ForegroundColor Red
+        $results.failed += "Workflow structure does not match the static mirror release contract"
     }
 } catch {
-    Write-Host " ✗" -ForegroundColor Red
+    Write-Host " FAIL" -ForegroundColor Red
     $results.failed += "Could not read workflow files: $_"
 }
 
-# ============================================================================
-# 3. Check Dockerfile (required for Deploy workflow)
-# ============================================================================
-Write-Host "[3/4] Checking Docker deployment readiness..." -NoNewline
-if (Test-Path "apps/lantern-garage/Dockerfile") {
-    Write-Host " ✓" -ForegroundColor Green
-    $results.passed += "Dockerfile present"
+Write-Host "[3/4] Checking npm release readiness..." -NoNewline
+$rootPackage = "package.json"
+$rootLock = "package-lock.json"
+$appPackage = "apps/lantern-garage/package.json"
+$appServer = "apps/lantern-garage/cloud-server.js"
+
+if ((Test-Path $rootPackage) -and (Test-Path $rootLock) -and (Test-Path $appPackage) -and (Test-Path $appServer)) {
+    Write-Host " OK" -ForegroundColor Green
+    $results.passed += "Root npm scripts, lockfile, and Lantern Garage entrypoint present"
 } else {
-    Write-Host " ✗" -ForegroundColor Red
-    $results.failed += "Dockerfile missing"
+    Write-Host " FAIL" -ForegroundColor Red
+    $missingNpm = @()
+    foreach ($file in @($rootPackage, $rootLock, $appPackage, $appServer)) {
+        if (!(Test-Path $file)) { $missingNpm += $file }
+    }
+    $results.failed += "Missing npm release files: $($missingNpm -join ', ')"
 }
 
-# ============================================================================
-# 4. Check critical files exist (that CI validates)
-# ============================================================================
-Write-Host "[4/4] Checking critical repo files (CI validates these)..." -NoNewline
+Write-Host "[4/4] Checking critical repo files..." -NoNewline
 $criticalFiles = @(
     "README.md",
     "AGENTS.md",
-    "docs/CONVERGENCE-LOOP.md"
+    "docs/ARCHITECTURE.md",
+    "manifests/cloud-mirrors.json"
 )
 
 $missingCritical = @()
@@ -94,27 +95,43 @@ foreach ($file in $criticalFiles) {
 }
 
 if ($missingCritical.Count -eq 0) {
-    Write-Host " ✓" -ForegroundColor Green
+    Write-Host " OK" -ForegroundColor Green
     $results.passed += "All critical files present"
 } else {
-    Write-Host " ✗" -ForegroundColor Red
+    Write-Host " FAIL" -ForegroundColor Red
     $results.failed += "Critical files missing: $($missingCritical -join ', ')"
 }
 
-# ============================================================================
-# Summary
-# ============================================================================
 Write-Host "`n[$timestamp] === Summary ===" -ForegroundColor Cyan
 Write-Host "Passed: $($results.passed.Count)" -ForegroundColor Green
 Write-Host "Failed: $($results.failed.Count)" -ForegroundColor Red
 Write-Host "Warnings: $($results.warnings.Count)" -ForegroundColor Yellow
 
-Write-Host "`nResults:" -ForegroundColor Cyan
-$results.passed | ForEach-Object { Write-Host "  ✓ $_" -ForegroundColor Green }
-$results.failed | ForEach-Object { Write-Host "  ✗ $_" -ForegroundColor Red }
-$results.warnings | ForEach-Object { Write-Host "  ! $_" -ForegroundColor Yellow }
+if ($results.passed.Count -gt 0) {
+    Write-Host "`nPassed checks:" -ForegroundColor Green
+    $results.passed | ForEach-Object { Write-Host "  - $_" }
+}
 
-$status = if ($results.failed.Count -eq 0) { "HEALTHY" } else { "DEGRADED" }
-Write-Host "`nCI/CD Pipeline Status: $status`n" -ForegroundColor $(if ($status -eq "HEALTHY") { "Green" } else { "Yellow" })
+if ($results.failed.Count -gt 0) {
+    Write-Host "`nFailed checks:" -ForegroundColor Red
+    $results.failed | ForEach-Object { Write-Host "  - $_" }
+}
 
-exit $(if ($results.failed.Count -eq 0) { 0 } else { 1 })
+if ($results.warnings.Count -gt 0) {
+    Write-Host "`nWarnings:" -ForegroundColor Yellow
+    $results.warnings | ForEach-Object { Write-Host "  - $_" }
+}
+
+$outDir = "data\validation"
+if (!(Test-Path $outDir)) {
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+}
+
+$results | ConvertTo-Json -Depth 10 | Out-File "$outDir\cicd-validation.json" -Encoding utf8
+Write-Host "`nResults saved to: $outDir\cicd-validation.json" -ForegroundColor Cyan
+
+if ($results.failed.Count -gt 0) {
+    exit 1
+}
+
+exit 0

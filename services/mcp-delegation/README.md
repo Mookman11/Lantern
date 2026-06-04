@@ -8,7 +8,7 @@
 
 ## What This Does
 
-Converts your Docker agent fleet into a **coordinated swarm** with:
+Converts your local agent fleet into a **coordinated swarm** with:
 - ✅ **Local MCP Delegation** — Smart agent selection + work distribution
 - ✅ **Agent Swarm Management** — Multi-agent orchestration
 - ✅ **Real-Time Dashboard** — Live agent status visualization (working/idle/sleeping)

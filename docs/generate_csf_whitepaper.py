@@ -403,7 +403,7 @@ def build():
         "converged baseline for further compression of the sparse cell map.<br/><br/>"
         "<b>Sensor pipeline integration:</b> Direct ingestion of real-time sensor "
         "observations into the delta stream without intermediate serialization.<br/><br/>"
-        "<b>Hybrid CSF+ZIP:</b> A container format that uses CSF for symbolic/sparse "
+        "<b>Hybrid CSF+ZIP:</b> An archive format that uses CSF for symbolic/sparse "
         "sections and falls back to DEFLATE for raw binary blobs, achieving the best "
         "of both worlds.",
         styles["Body"]))

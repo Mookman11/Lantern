@@ -33,7 +33,7 @@ const {
 } = require("./lib/unified-agent");
 const { handleStreamChat } = require("./lib/stream-chat");
 
-const repoRoot = path.resolve(__dirname, "..", "..");
+const repoRoot = process.env.LANTERN_REPO_ROOT || path.resolve(__dirname, "..", "..");
 const publicRoot = path.join(__dirname, "public");
 const port = Number(process.env.LANTERN_GARAGE_PORT || process.env.PORT || 4177);
 const host = process.env.LANTERN_GARAGE_HOST || (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
