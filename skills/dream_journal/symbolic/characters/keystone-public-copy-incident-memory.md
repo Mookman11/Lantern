@@ -49,7 +49,7 @@ Sequence summary:
 
 ```text
 1. Alex identified the live Render page as unsafe.
-2. Keystone initially tried entrypoint-level guards (`safe_app.py`, Dockerfile, WSGI, Procfile).
+2. Keystone initially tried entrypoint-level guards (`safe_app.py`, WSGI, Procfile).
 3. Alex's local validation showed Render still exposed stale/unsafe wording.
 4. Evidence showed Render and Railway were separate public surfaces.
 5. Source cleanup in `app.py` became the primary fix.
@@ -105,7 +105,7 @@ Live user validation beats deployment inference.
 Source cleanup beats wrapper cleanup.
 One public-copy incident must be handled as a bundle: source, startup paths, tests, deploy target, live validation, and outreach.
 Do not claim convergence from a push, status context, or healthcheck alone.
-Separate Render, Railway, local Docker, and GitHub master as distinct surfaces.
+Separate public hosts, local npm runtime, and GitHub master as distinct surfaces.
 Do not commit raw chat logs; commit consent-aware incident memory.
 Do not merge runtime/autonomy/bio-threat work during an unresolved public trust incident.
 ```

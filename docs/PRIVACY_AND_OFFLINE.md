@@ -26,9 +26,11 @@ When `ANTHROPIC_API_KEY` is **not** set, the server falls back to a local rule-b
 
 No other cloud provider integrations are active in the default configuration.
 
-### Railway (deployment only)
+### Public Mirrors
 
-When deployed to Railway, the server process runs in Railway's cloud infrastructure. Data files written to disk on Railway are subject to Railway's storage and retention policies. Operators who require data sovereignty should run the local server only (`server.js` on their own hardware).
+Public mirrors are for static or reduced public routes. They are not the
+canonical private runtime. Operators who require data sovereignty should run the
+local server only (`npm start` on their own hardware).
 
 ---
 
@@ -36,7 +38,7 @@ When deployed to Railway, the server process runs in Railway's cloud infrastruct
 
 - **Format:** Append-only JSONL (newline-delimited JSON). Records are never overwritten or deleted by the application.
 - **Location:** Local filesystem under `data/`. No database engine is required.
-- **No cloud sync by default.** Data does not leave the device unless the operator deploys to Railway or manually exports files.
+- **No remote sync by default.** Data does not leave the device unless the operator manually exports files or explicitly runs a separate public mirror with its own storage policy.
 
 ---
 

@@ -97,7 +97,7 @@
       <h1>Dream Journal</h1>
       <p class="byline">Orion Edition / V1.0.0 Release Candidate</p>
       <p class="tagline">Remember your dreams.<br>Reflect on what they mean.</p>
-      <p class="subtagline">A private, local-first dream journal for capture, lucidity, symbols, patterns, export, and optional AI reflection.</p>
+      <p class="subtagline">A private, local-first dream journal for capture, lucidity, symbols, patterns, export, and agent-backed reflection.</p>
       <div class="privacy-badge" role="img" aria-label="Privacy shield">
         <svg class="shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>Your dreams. Your space. Always private.</span>
@@ -115,7 +115,7 @@
       <article class="feature-card"><div class="icon">&#128172;</div><h3>Mirror</h3><p>Generate a reflection prompt from your actual journal stats.</p></article>
       <article class="feature-card"><div class="icon">&#128202;</div><h3>Analyze</h3><p>Track lucidity, emotions, tags, symbols, and recurring dream signs.</p></article>
       <article class="feature-card"><div class="icon">&#128190;</div><h3>Export</h3><p>Download JSONL from the local API for backup or review.</p></article>
-      <article class="feature-card"><div class="icon">&#128274;</div><h3>Private</h3><p>Local-first by default; AI reflection is optional and clearly labeled.</p></article>
+      <article class="feature-card"><div class="icon">&#128274;</div><h3>Private</h3><p>Local-first by default; chat returns an agent response or an explicit failure.</p></article>
     </section>
 
     <main class="dream-main">
@@ -129,7 +129,7 @@
             <div class="release-card"><strong>Local-first PC journal</strong><span>Best-of The Journal, Obsidian, and Diarium: private storage, quick access, backup-ready export.</span></div>
             <div class="release-card"><strong>Lucid practice lane</strong><span>Lucidity score, technique, recurring flag, and dream-sign tracking without turning dreams into commands.</span></div>
             <div class="release-card"><strong>Symbol analytics</strong><span>DreamDiary-style symbols and stats, plus Lantern door language kept as reflection, not proof.</span></div>
-            <div class="release-card"><strong>Optional AI mirror</strong><span>DreamStream/Oniri-style reflection only when provider support exists; local prompt generation always works.</span></div>
+            <div class="release-card"><strong>Required agent mirror</strong><span>Provider streaming runs when configured; local agent fallback answers offline, or the request fails explicitly.</span></div>
           </div>
           <table class="feature-table">
             <thead><tr><th>Market feature</th><th>Lantern V1 status</th><th>Release behavior</th></tr></thead>
@@ -138,36 +138,9 @@
               <tr><td>Lucid dreaming tools</td><td><span class="truth-pill live">Live</span></td><td>Lucidity scale, technique logging, recurring dream and dream-sign flags.</td></tr>
               <tr><td>Symbols and stats</td><td><span class="truth-pill live">Live</span></td><td>Top tags, emotions, and symbols are derived from saved entries.</td></tr>
               <tr><td>Voice transcription and art generation</td><td><span class="truth-pill held">Held</span></td><td>Not claimed for V1. These stay future work until implemented and verified.</td></tr>
-              <tr><td>AI interpretation</td><td><span class="truth-pill held">Optional</span></td><td>Provider-backed chat may stream when configured; local mirror prompt remains available offline.</td></tr>
+              <tr><td>AI interpretation</td><td><span class="truth-pill live">Required</span></td><td>Chat always returns an agent response through a configured provider or local fallback, or fails explicitly with evidence.</td></tr>
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <section class="dream-panel" aria-label="Dream Journal Chat">
-        <div class="panel-header">
-          <h2>Talk to your Dream Journal</h2>
-          <p class="panel-desc">Share a dream, ask about the doors, or just say hello.</p>
-        </div>
-        <div class="panel-body">
-          <div id="message"></div>
-          <div class="chat-card">
-            <div class="chat-header">
-              <span>🌙</span>
-              <strong>Dream Journal</strong>
-              <span class="chat-status">
-                <span class="status-dot" id="statusDot"></span>
-                <span id="statusText">Online</span>
-              </span>
-            </div>
-            <div class="chat-log" id="chatLog"></div>
-            <div class="chat-suggestions" id="chatSuggestions"></div>
-            <div class="chat-input-row">
-              <input type="text" id="chatInput" placeholder="Tell me a dream, a door, or a feeling..." autocomplete="off">
-              <button id="chatSend" type="button">Send</button>
-              <button id="chatClear" type="button" title="Clear chat memory">Clear</button>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -177,6 +150,7 @@
           <p class="panel-desc">Log a new entry or review what you have saved.</p>
         </div>
         <div class="panel-body">
+          <div id="message"></div>
           <div class="stats">
             <div class="stat-card"><div class="stat-number" id="totalCount">0</div><div class="stat-label">Total Entries</div></div>
             <div class="stat-card"><div class="stat-number" id="dreamCount">0</div><div class="stat-label">Dreams</div></div>
@@ -752,29 +726,33 @@
       sendChat(label);
     }
 
-    document.getElementById('chatSend').addEventListener('click', () => {
-      const input = document.getElementById('chatInput');
-      const msg = input.value;
-      input.value = '';
-      sendChat(msg);
-    });
+    const chatSendEl = document.getElementById('chatSend');
+    const chatInputEl = document.getElementById('chatInput');
+    const chatClearEl = document.getElementById('chatClear');
+    if (chatSendEl && chatInputEl && chatClearEl) {
+      chatSendEl.addEventListener('click', () => {
+        const msg = chatInputEl.value;
+        chatInputEl.value = '';
+        sendChat(msg);
+      });
 
-    document.getElementById('chatInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('chatSend').click();
+      chatInputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          chatSendEl.click();
+        }
+      });
+      chatClearEl.addEventListener('click', () => {
+        localStorage.removeItem(CHAT_MEMORY_KEY);
+        document.getElementById('chatLog').innerHTML = '';
+        addBubble('lantern', 'Chat memory cleared. The dream door is open again.');
+      });
+
+      // Load chat memory or show greeting
+      if (!loadChatMemory()) {
+        addBubble('lantern', 'The dream door is open. What did you bring back? Tell me a dream, or tap a prompt below.');
+        renderSuggestions(["Log a dream", "Recent dreams", "Mirror a dream", "Tell me about the doors"]);
       }
-    });
-    document.getElementById('chatClear').addEventListener('click', () => {
-      localStorage.removeItem(CHAT_MEMORY_KEY);
-      document.getElementById('chatLog').innerHTML = '';
-      addBubble('lantern', 'Chat memory cleared. The dream door is open again.');
-    });
-
-    // Load chat memory or show greeting
-    if (!loadChatMemory()) {
-      addBubble('lantern', 'The dream door is open. What did you bring back? Tell me a dream, or tap a prompt below.');
-      renderSuggestions(["Log a dream", "Recent dreams", "Mirror a dream", "Tell me about the doors"]);
     }
 
     // Load stats on page load

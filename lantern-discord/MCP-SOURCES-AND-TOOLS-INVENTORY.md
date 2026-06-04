@@ -149,7 +149,7 @@ Lantern OS v1.0.0 is the **clean convergence point** for:
 |------|---------|------------------|
 | `gm-agent-orchestrator` | Multi-agent coordination, task queue, MCP server | Core orchestration engine |
 | `human-flourishing-frameworks-scan` | Lantern chat, media curator, HFF world model | User-facing surfaces + telemetry |
-| `lantern-os` (remote) | v1.0.0 release control plane | Unified release container |
+| `lantern-os` (remote) | v1.0.0 release control plane | Unified release surface |
 
 **Convergence Loop:** See `C:\tmp\human-flourishing-frameworks-scan\docs\CONVERGENCE-LOOP.md`
 

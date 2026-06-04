@@ -28,13 +28,13 @@ def test_cloud_server_uses_public_bind_and_holds_local_actions():
         '0.0.0.0',
         '/health',
         '/outreach',
-        'Action held in AWS cloud mode.',
-        'local orchestrator queue is not exposed on AWS cloud mode',
+        'Action held in public mirror mode.',
+        'local orchestrator queue is not exposed from public mirrors',
     ]
     assert [phrase for phrase in required if phrase not in text] == []
 
 
-def test_render_blueprint_is_retired_for_aws_pivot():
+def test_render_blueprint_is_not_release_surface():
     assert not Path('render.yaml').exists()
-    text = Path('docs/LANTERN-RUNTIME-CICD.md').read_text(encoding='utf-8')
-    assert 'Do not re-add `render.yaml`' in text
+    text = Path('README.md').read_text(encoding='utf-8')
+    assert 'npm start' in text

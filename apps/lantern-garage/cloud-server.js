@@ -245,7 +245,7 @@ async function route(req, res) {
     return;
   }
 
-  // POST write allowlist — add endpoints here to permit writes in cloud mode
+  // POST write allowlist: add endpoints here to permit writes in public mirror mode.
   const writePathsAllowed = [
     url.pathname === "/api/chat" && req.method === "POST",
     url.pathname === "/api/dream/chat" && req.method === "POST",
@@ -260,7 +260,7 @@ async function route(req, res) {
   if (req.method === "POST" && !writePathsAllowed.some(Boolean)) {
     sendJson(res, {
       error: "cloud_read_only_method_not_allowed",
-      message: "This endpoint is not available in cloud mode",
+      message: "This endpoint is not available in public mirror mode",
       method: req.method,
       path: url.pathname
     }, 403);
@@ -462,10 +462,10 @@ async function route(req, res) {
   if (url.pathname.startsWith("/api/actions/") && req.method === "POST") {
     const action = url.pathname.replace("/api/actions/", "");
     sendJson(res, {
-      status: "action_not_available_in_cloud",
+      status: "action_not_available_in_public_mirror",
       action,
-      message: "Action held in AWS cloud mode.",
-      reason: "The local orchestrator queue is not exposed on AWS cloud mode.",
+      message: "Action held in public mirror mode.",
+      reason: "The local orchestrator queue is not exposed from public mirrors.",
     }, 403);
     return;
   }

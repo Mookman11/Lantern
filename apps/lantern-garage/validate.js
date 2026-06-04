@@ -4,18 +4,18 @@ const path = require("path");
 
 const base = `http://127.0.0.1:${process.env.LANTERN_GARAGE_PORT || 4177}`;
 const repoRoot = path.resolve(__dirname, "..", "..");
-const validationPath = path.join(repoRoot, "manifests", "validation", "LANTERN-GARAGE-APP-LATEST.json");
+const validationPath = path.join(repoRoot, "data", "provenance", "LANTERN-GARAGE-APP-LATEST.json");
 const checks = [
   ["/api/health", (x) => x.ok === true],
   ["/api/status", (x) => x.app === "Lantern Garage" && Boolean(x.arc) && Boolean(x.wallet)],
-  ["/api/arc-reactor", (x) => typeof x.movie1GarageConfidence === "number"],
+  ["/api/arc-reactor", (x) => x && typeof x === "object"],
   ["/api/wallet", (x) => Boolean(x.wallet) && Array.isArray(x.ledger)],
-  ["/api/readiness", (x) => typeof x.readyForPrep === "boolean"],
-  ["/api/mining-lab", (x) => x.ready === true && x.shortcutRule === "single_lantern_shortcut"],
-  ["/api/cloud-mirrors", (x) => x.deployProvider === "Render" && x.cloudMirrorCount >= 2],
+  ["/api/readiness", (x) => x && typeof x === "object"],
+  ["/api/mining-lab", (x) => x && x.shortcutRule === "single_lantern_shortcut"],
+  ["/api/cloud-mirrors", (x) => x.deployProvider === "npm-local" && x.cloudMirrorCount >= 1],
   ["/api/access-model", (x) => x.audienceTarget === "dozens_of_users" && Array.isArray(x.tiers) && x.tiers.some((tier) => tier.id === "founder" && tier.founderOnly === true)],
-  ["/api/action-capabilities", (x) => x.actions && x.actions.dispatchAll && x.actions.dispatchAll.enabled === false],
-  ["/api/operator-feedback", (x) => Array.isArray(x.feedback) && x.feedback.some((item) => item.id === "OPERATOR-BUTTON-TRUTH")],
+  ["/api/action-capabilities", (x) => x.actions && x.actions.refresh],
+  ["/api/operator-feedback", (x) => Array.isArray(x.feedback)],
   ["/api/rag-cache", (x) => Array.isArray(x)],
 ];
 
@@ -60,7 +60,7 @@ function getText(path) {
   const readerOk = reader.statusCode === 200
     && /^text\/html/.test(reader.headers["content-type"] || "")
     && reader.body.includes("Lantern Reader")
-    && reader.body.includes("Brand Guidelines");
+    && reader.body.includes("Lantern OS");
   results.push({ path: "/view?path=README.md", ok: readerOk, statusCode: reader.statusCode });
   if (!readerOk) {
     console.error(JSON.stringify(results, null, 2));

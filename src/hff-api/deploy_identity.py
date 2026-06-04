@@ -19,15 +19,12 @@ def deployment_identity() -> dict[str, Any]:
         "service": "human-flourishing-frameworks",
         "app_version": APP_VERSION,
         "expected_entrypoint": "safe_app:app",
-        "git_commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA")
-        or os.environ.get("GIT_COMMIT")
+        "git_commit": os.environ.get("GIT_COMMIT")
         or os.environ.get("COMMIT_SHA")
         or "unknown",
-        "git_branch": os.environ.get("RAILWAY_GIT_BRANCH")
-        or os.environ.get("GIT_BRANCH")
-        or "unknown",
-        "railway_service_name": os.environ.get("RAILWAY_SERVICE_NAME", "unknown"),
-        "railway_environment_name": os.environ.get("RAILWAY_ENVIRONMENT_NAME", "unknown"),
+        "git_branch": os.environ.get("GIT_BRANCH") or "unknown",
+        "service_name": os.environ.get("SERVICE_NAME", "local"),
+        "environment_name": os.environ.get("ENVIRONMENT_NAME", "local"),
         "background_status_route": "/background/status",
         "health_route": "/healthz",
     }

@@ -75,7 +75,7 @@ class StressTest:
             "How do I learn Python?",
             "Explain quantum computing",
             "Cloud infrastructure basics",
-            "Docker containerization"
+            "Local npm runtime"
         ]
 
         for _ in range(num_queries):

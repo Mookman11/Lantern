@@ -16,9 +16,9 @@ __pycache__/
 secrets/
 
 # Private local vaults: never commit raw PIID/PII/private social/feed/patient data.
-data/private/**
-!data/private/
-!data/private/README.md
+/data/private/**
+!/data/private/
+!/data/private/README.md
 private/**
 .local-private/**
 
@@ -35,19 +35,19 @@ dist/
 build/
 
 # Discord subscriber data (local only, not in Git)
-data/discord/subscribers.json
+/data/discord/subscribers.json
 
 # Dreamer notebooks — private user data (local only)
-data/dreamer/notebooks/*.jsonl
+/data/dreamer/notebooks/*.jsonl
 
 # Google Drive temp folders
 .tmp.driveupload/
 .tmp.drivedownload/
 .claude/worktrees/
-data/dream_journal/*.jsonl
-data/dream_journal/csf/*.csf
-data/status/agent-monitor-latest.json
-data/conversations/garage-conversations.jsonl
+/data/dream_journal/*.jsonl
+/data/dream_journal/csf/*.csf
+/data/status/agent-monitor-latest.json
+/data/conversations/garage-conversations.jsonl
 
 # Deployment weight reduction (static site deploy)
 .git/
@@ -77,11 +77,18 @@ archive/**/worktrees/**
 artifacts/
 *.log
 *.tmp
+test-results/
+**/test-results/
 
 # Python cache
 __pycache__/
 
 # Data directories that should not be committed
-data/dream_journal/
-data/dollhouse/csf/
-data/agent-fleet/
+/archive/
+/apps/data/
+/data/**
+!/data/
+!/data/README.md
+/data/dream_journal/
+/data/dollhouse/csf/
+/data/agent-fleet/
