@@ -2,6 +2,8 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
+let Anthropic;
+try { Anthropic = require("@anthropic-ai/sdk"); } catch { Anthropic = null; }
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const publicRoot = path.join(__dirname, "public");
@@ -1134,6 +1136,56 @@ async function route(req, res) {
       const user = normalizeDreamerUser(body.user || "courtney");
       const record = await appendDreamerEntry(user, body);
       sendJson(res, { saved: true, record });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
+  if (url.pathname === "/api/dreamer/chat" && req.method === "POST") {
+    try {
+      const raw = await collectRequestBody(req);
+      const body = JSON.parse(raw);
+      const user = normalizeDreamerUser(body.user || "orion");
+      const kind = String(body.kind || "dream").slice(0, 40);
+      const text = String(body.text || "").slice(0, 4000);
+      const history = Array.isArray(body.history) ? body.history.slice(-10) : [];
+
+      // Save the user's entry first
+      const record = await appendDreamerEntry(user, { kind, text, name: body.name, mood: body.mood, tags: body.tags });
+
+      // Build agent reply via Anthropic if key is available
+      let reply = null;
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (Anthropic && apiKey) {
+        const client = new Anthropic.default({ apiKey });
+        const systemPrompt = `You are Orion, a reflective dream journal companion for Lantern OS. You help users explore their inner world through dreams, notes, symbols, mirrors, and lore. The user just recorded a "${kind}" entry. Respond warmly and insightfully in 2-4 sentences — notice patterns, ask one gentle question, or reflect a symbol back. Never make medical claims. Never invent facts about the user. Keep replies concise.`;
+        const messages = [
+          ...history.map((m) => ({ role: m.role, content: m.content })),
+          { role: "user", content: `[${kind}] ${text}` },
+        ];
+        const response = await client.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 300,
+          system: systemPrompt,
+          messages,
+        });
+        reply = response.content[0]?.text || null;
+      } else {
+        const fallbacks = {
+          dream: "What a vivid scene — the imagery here is worth sitting with. What feeling stayed with you when you woke?",
+          note: "Noted and held. Patterns like this often surface for a reason. Anything else connecting to this?",
+          symbol: "Symbols return when they have something left to say. What does this one mean to you right now?",
+          mirror: "Mirrors show what we're ready to see. This reflection feels important — what does it reveal?",
+          event: "Moments like this leave a mark. How did it shift something inside you?",
+          lore: "Every mythology has its keepers. What part of this lore feels most alive for you today?",
+          character: "Characters in our inner world often carry messages. What does this one want you to know?",
+          place: "Places in dreams hold their own gravity. What did this space feel like to be in?",
+        };
+        reply = fallbacks[kind] || fallbacks.note;
+      }
+
+      sendJson(res, { saved: true, record, reply });
     } catch (error) {
       sendJson(res, { error: error.message }, 400);
     }

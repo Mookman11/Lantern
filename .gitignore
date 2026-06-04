@@ -37,3 +37,4 @@ data/dream_journal/
 
 # Claude Code internal agent state
 .claude/worktrees/
+data/dreamer/

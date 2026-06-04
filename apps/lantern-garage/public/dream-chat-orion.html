@@ -229,6 +229,7 @@
 
   let isStreaming = false;
   let serverOnline = false;
+  const conversationHistory = [];
 
   // Sync both kind selectors
   kindHeader.addEventListener('change', () => { kindInline.value = kindHeader.value; });
@@ -383,24 +384,39 @@
     inputEl.value = '';
     inputEl.style.height = 'auto';
 
+    conversationHistory.push({ role: 'user', content: `[${kind}] ${text}` });
+
     const { row, bubble, cursor } = createAgentBubble();
     setStatus('thinking');
 
-    // Save entry to server
+    let reply = null;
     let saved = false;
+
     if (serverOnline) {
       try {
-        const r = await fetch('/api/dreamer', {
+        const r = await fetch('/api/dreamer/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user: 'orion', kind, text })
+          body: JSON.stringify({
+            user: 'orion',
+            kind,
+            text,
+            history: conversationHistory.slice(-10),
+          }),
+          signal: AbortSignal.timeout(15000),
         });
-        saved = r.ok;
+        if (r.ok) {
+          const data = await r.json();
+          reply = data.reply || null;
+          saved = !!data.saved;
+        }
       } catch {}
     }
 
-    // Generate and stream reply
-    const reply = localReply(kind);
+    if (!reply) reply = localReply(kind);
+
+    conversationHistory.push({ role: 'assistant', content: reply });
+
     await streamText(bubble, cursor, reply);
 
     // Suggestions
