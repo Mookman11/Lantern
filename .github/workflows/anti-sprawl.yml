@@ -56,7 +56,7 @@ jobs:
           exit 1
 
       - name: Check file count
-        if: steps.analyze.outputs.new_file_count > env.MAX_NEW_FILES
+        if: fromJSON(steps.analyze.outputs.new_file_count) > fromJSON(env.MAX_NEW_FILES)
         run: |
           echo "❌ BLOCKED: Too many new files (${{ steps.analyze.outputs.new_file_count }})"
           echo "Maximum allowed per PR: ${{ env.MAX_NEW_FILES }}"
@@ -64,7 +64,7 @@ jobs:
           exit 1
 
       - name: Check markdown file count
-        if: steps.analyze.outputs.new_markdown_count > env.MAX_NEW_MARKDOWN
+        if: fromJSON(steps.analyze.outputs.new_markdown_count) > fromJSON(env.MAX_NEW_MARKDOWN)
         run: |
           echo "❌ BLOCKED: Too many new markdown files (${{ steps.analyze.outputs.new_markdown_count }})"
           echo "Maximum allowed per PR: ${{ env.MAX_NEW_MARKDOWN }}"
