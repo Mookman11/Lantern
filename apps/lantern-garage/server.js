@@ -2181,6 +2181,51 @@ Tone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the d
     return;
   }
 
+  if (url.pathname === "/api/dream/export" && req.method === "GET") {
+    try {
+      const format = url.searchParams.get("format") || "jsonl";
+      const dreamDir = path.join(repoRoot, "data", "dream_journal");
+      let entries = [];
+      if (fs.existsSync(dreamDir)) {
+        const files = fs.readdirSync(dreamDir).filter(f => f.endsWith(".jsonl")).sort();
+        for (const file of files) {
+          const content = fs.readFileSync(path.join(dreamDir, file), "utf-8").trim();
+          if (content) {
+            entries.push(...content.split("\n").map(line => {
+              try { return JSON.parse(line); } catch { return null; }
+            }).filter(e => e));
+          }
+        }
+      }
+      const dateStr = new Date().toISOString().slice(0, 10);
+      if (format === "csv") {
+        const cols = ["id", "timestamp", "kind", "text", "lucidity", "emotions", "tags", "symbols"];
+        const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const rows = [cols.join(",")];
+        for (const e of entries) {
+          rows.push([esc(e.id), esc(e.timestamp), esc(e.kind), esc(e.text),
+            esc(e.lucidity), esc((e.emotions || []).join(";")),
+            esc((e.tags || []).join(";")), esc((e.symbols || []).join(";"))].join(","));
+        }
+        res.writeHead(200, {
+          "Content-Type": "text/csv",
+          "Content-Disposition": `attachment; filename="dream-journal-${dateStr}.csv"`
+        });
+        res.end(rows.join("\n"));
+      } else {
+        const body = entries.map(e => JSON.stringify(e)).join("\n");
+        res.writeHead(200, {
+          "Content-Type": "application/x-ndjson",
+          "Content-Disposition": `attachment; filename="dream-journal-${dateStr}.jsonl"`
+        });
+        res.end(body);
+      }
+    } catch (error) {
+      sendJson(res, { error: error.message }, 400);
+    }
+    return;
+  }
+
   if (url.pathname.startsWith("/api/dream/read/") && req.method === "GET") {
     try {
       const id = url.pathname.replace("/api/dream/read/", "");
