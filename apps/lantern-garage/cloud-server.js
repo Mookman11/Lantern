@@ -217,11 +217,26 @@ async function route(req, res) {
 
   if (url.pathname.startsWith("/api/actions/") && req.method === "POST") {
     const action = url.pathname.replace("/api/actions/", "");
+    // Action held in AWS cloud mode. Local actions require operator machine access.
     sendJson(res, {
       status: "action_not_available_in_cloud",
       action,
-      reason: "Local actions require operator machine access",
+      reason: "Action held in AWS cloud mode.",
     }, 403);
+    return;
+  }
+
+  if (url.pathname === "/api/orchestrator" || url.pathname.startsWith("/api/orchestrator/")) {
+    // local orchestrator queue is not exposed on AWS cloud mode
+    sendJson(res, {
+      status: "orchestrator_unavailable",
+      reason: "local orchestrator queue is not exposed on AWS cloud mode",
+    }, 403);
+    return;
+  }
+
+  if (url.pathname === "/outreach") {
+    sendFile(res, path.resolve(publicRoot, "outreach.html"));
     return;
   }
 
