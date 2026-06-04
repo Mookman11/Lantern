@@ -7,7 +7,7 @@ on:
 env:
   MAX_NEW_FILES: 25
   MAX_NEW_MARKDOWN: 4
-  ALLOWED_TOP_LEVEL: src,apps,services,docs,tests,scripts,config,data,ops,integrations,skills,docker,manifests,.github
+  ALLOWED_TOP_LEVEL: src,apps,services,docs,tests,scripts,config,data,ops,integrations,skills,docker,manifests,surfaces,archive,.github
 
 jobs:
   anti-sprawl:
@@ -17,6 +17,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin master
 
       - name: Analyze PR changes
         id: analyze
