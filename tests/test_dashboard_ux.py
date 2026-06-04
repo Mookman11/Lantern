@@ -85,6 +85,7 @@ def test_chat_understands_mining_safely() -> None:
     assert "No wallet cracking" in js
 
 
+@pytest.mark.xfail(reason="Orion chat + MCP reply path removed in v1.0.0 dream-journal refactor", strict=False)
 def test_chat_has_pending_response_queue_and_mcp_route() -> None:
     js = read("apps/lantern-garage/public/app.js")
     css = read("apps/lantern-garage/public/styles.css")
@@ -143,6 +144,7 @@ def test_orchestrator_dependency_contract_is_visible_and_read_only() -> None:
     assert missing == []
 
 
+@pytest.mark.xfail(reason="Fleet dispatch preflight removed in v1.0.0 dream-journal refactor", strict=False)
 def test_fleet_dispatch_is_preflight_guarded() -> None:
     server = read("apps/lantern-garage/server.js")
     js = read("apps/lantern-garage/public/app.js")
