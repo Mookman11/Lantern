@@ -2,9 +2,13 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-// Load .env from repo root (two levels up from apps/lantern-garage/) if present
-const envPath = path.resolve(__dirname, "..", "..", ".env");
-if (fs.existsSync(envPath)) {
+// Load .env.local then .env from repo root (two levels up from apps/lantern-garage/)
+const candidateEnvFiles = [
+  path.resolve(__dirname, "..", "..", ".env.local"),
+  path.resolve(__dirname, "..", "..", ".env"),
+];
+for (const envPath of candidateEnvFiles) {
+  if (!fs.existsSync(envPath)) continue;
   fs.readFileSync(envPath, "utf8").split("\n").forEach((line) => {
     const m = line.match(/^([A-Z0-9_]+)\s*=\s*(.*)$/);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]/g, "").replace(/['"]$/g, "");

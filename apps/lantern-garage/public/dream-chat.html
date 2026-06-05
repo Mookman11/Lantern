@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.json">
-  <title>Dream Journal V1.0.0 — Lantern OS</title>
+  <title>Dream Journal v1.0.1 — Lantern OS</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -994,6 +994,19 @@
       inputEl.value = "";
       inputEl.style.height = "auto";
       toggleDebug();
+      return;
+    }
+    // Explicitly reject other bang commands so they don't silently behave like normal chat
+    const bangMatch = text.match(/^!(\S+)/);
+    if (bangMatch) {
+      inputEl.value = "";
+      inputEl.style.height = "auto";
+      const cmdName = bangMatch[1].toLowerCase();
+      const errRow = document.createElement("div");
+      errRow.className = "msg-row agent";
+      errRow.innerHTML = `<div class="msg-label">System</div><div class="bubble" style="color:var(--danger);">Unsupported command: !${escapeHtml(cmdName)}</div>`;
+      messagesEl.appendChild(errRow);
+      scrollToBottom();
       return;
     }
     if (emptyState) emptyState.style.display = "none";

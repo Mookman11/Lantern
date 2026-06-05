@@ -205,7 +205,7 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       const raw = await collectRequestBody(req);
       const { key, value } = JSON.parse(raw || "{}");
       if (!key || !PROVIDER_KEYS.includes(key)) { sendJson(res, { error: "unknown_key" }, 400); return true; }
-      const envFilePath = path.join(repoRoot, ".env");
+      const envFilePath = path.join(repoRoot, ".env.local");
       let existing = fs.existsSync(envFilePath) ? fs.readFileSync(envFilePath, "utf8") : "";
       const lines = existing.split("\n").filter(l => !l.startsWith(`${key}=`) && !l.startsWith(`${key} =`));
       if (value) lines.push(`${key}=${value}`);
