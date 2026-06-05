@@ -16,19 +16,20 @@ Current focus: Dream Journal Orion Edition, local/private agent workflows, and p
 
 1. [Overview](#overview)
 2. [Current Capabilities](#current-capabilities)
-3. [Architecture](#architecture)
-4. [Core Concepts](#core-concepts)
-5. [Dream Journal and Personas](#dream-journal-and-personas)
-6. [PCSF Provider Capacity Fallback](#pcsf-provider-capacity-fallback)
-7. [Convergence and Receipts](#convergence-and-receipts)
-8. [Memory, RAG, and CSF/CADD](#memory-rag-and-csfcadd)
-9. [MCP and Agent Runtime](#mcp-and-agent-runtime)
-10. [Run Locally](#run-locally)
-11. [Testing and Validation](#testing-and-validation)
-12. [Documentation Map](#documentation-map)
-13. [Planned Documentation Migration](#planned-documentation-migration)
-14. [Contributing](#contributing)
-15. [Privacy](#privacy)
+3. [Dream Journal and Personas](#dream-journal-and-personas)
+4. [Getting Started](#getting-started)
+5. [Architecture](#architecture)
+6. [Core Concepts](#core-concepts)
+7. [PCSF Provider Capacity Fallback](#pcsf-provider-capacity-fallback)
+8. [Convergence and Receipts](#convergence-and-receipts)
+9. [Memory, RAG, and CSF/CADD](#memory-rag-and-csfcadd)
+10. [MCP and Agent Runtime](#mcp-and-agent-runtime)
+11. [Run Locally](#run-locally)
+12. [Testing and Validation](#testing-and-validation)
+13. [Documentation Map](#documentation-map)
+14. [Planned Documentation Migration](#planned-documentation-migration)
+15. [Contributing](#contributing)
+16. [Privacy](#privacy)
 
 ---
 
@@ -66,6 +67,48 @@ The README is intended as the public-facing entry point. Detailed runtime, conve
 | Provider Gateway | Multi-provider routing for local and external model access where configured. |
 | PCSF | Provider Capacity Safety Frame for capacity class, fallback routing, and provider/local claim clarity. |
 | Discord Bot | Optional Discord integration using the same broader convergence and access model. |
+
+---
+
+## Dream Journal and Personas
+
+The Dream Journal is the main user-facing surface. It is designed for conversational capture instead of rigid forms.
+
+| Surface | Description |
+|---|---|
+| Dream Journal chat | Freeform local journaling flow for dreams, memories, symbolic material, and follow-up reflection. |
+| Local export | JSONL-style export path for portable review and future CSF/CADD ingestion. |
+| PWA mode | Browser-installable surface with offline-friendly behavior where supported. |
+| Provider routing | Uses configured local or external providers through the unified connector. |
+
+Lantern personas provide different interaction modes over the same backend pipeline.
+
+| Persona | Routing cues | Role |
+|---|---|---|
+| Keystone | truth, pattern, anchor | Grounded integration and direct technical review. |
+| Waterfall | water, reconnection, patient reflection | Gentle reflective mode. |
+| Xenon | spacecraft, navigation, exploration | Exploratory and collaborative mode. |
+| Blinkbug | static, glitch, chaos | Creative divergent mode. |
+| Comet Leap | trajectory, momentum, flourishing | Fast synthesis and execution framing. |
+| Founder | wish, protection, lantern | Protective operator-oriented framing. |
+
+---
+
+## Getting Started
+
+For the main local web surface:
+
+```bash
+npm start --prefix apps/lantern-garage
+```
+
+Open:
+
+```text
+http://127.0.0.1:4177
+```
+
+The longer local setup, optional MCP server, optional Discord bot, and validation commands are listed below.
 
 ---
 
@@ -109,30 +152,6 @@ lantern-os/
 | CSF | Convergence-Fitted Searchable Archive for structured symbolic data. |
 | CADD | Capture, Assess, Distill, Dock pipeline for moving material into CSF. |
 | PCSF | Provider Capacity Safety Frame for routing capacity and fallback decisions. |
-
----
-
-## Dream Journal and Personas
-
-The Dream Journal is the main user-facing surface. It is designed for conversational capture instead of rigid forms.
-
-| Surface | Description |
-|---|---|
-| Dream Journal chat | Freeform local journaling flow for dreams, memories, symbolic material, and follow-up reflection. |
-| Local export | JSONL-style export path for portable review and future CSF/CADD ingestion. |
-| PWA mode | Browser-installable surface with offline-friendly behavior where supported. |
-| Provider routing | Uses configured local or external providers through the unified connector. |
-
-Lantern personas provide different interaction modes over the same backend pipeline.
-
-| Persona | Routing cues | Role |
-|---|---|---|
-| Keystone | truth, pattern, anchor | Grounded integration and direct technical review. |
-| Waterfall | water, reconnection, patient reflection | Gentle reflective mode. |
-| Xenon | spacecraft, navigation, exploration | Exploratory and collaborative mode. |
-| Blinkbug | static, glitch, chaos | Creative divergent mode. |
-| Comet Leap | trajectory, momentum, flourishing | Fast synthesis and execution framing. |
-| Founder | wish, protection, lantern | Protective operator-oriented framing. |
 
 ---
 
