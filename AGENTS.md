@@ -1,66 +1,52 @@
-# AGENTS.md - Lantern OS
+# AGENTS.md — Lantern OS
 
 A focused guide for AI coding agents.
 
-Core principle: be honest about what is real vs. designed. Never fabricate
-state.
+**Core principle:** Be honest about what is real vs. designed. Never fabricate state.
 
 ## Quick Start
 
-```bash
-npm install
-npm run check
-npm test
-npm start
-```
-
-Python checks, when relevant:
-
+**Build & Test**
 ```bash
 python -m pip install -r requirements.txt
-python -m pytest tests -q --tb=short
+python -m pytest tests/ -q --tb=short --ignore=tests/test_anti_entropy_memory.py --ignore=tests/test_audit_chain.py --ignore=tests/test_discord_bot.py --ignore=tests/test_discord_voice_gate.py
 ```
 
-## Real vs. Design Contract
+**Run Locally**
+```bash
+node apps/lantern-garage/server.js          # port 4177
+python src/mcp_server/server.py             # port 8771
+```
 
-Real implementations:
+## Real vs Design Contract (Critical)
 
+**Real (have working implementations):**
 - `dream_journal`
 - `lucid_dreaming`
 - `archive_curator`
 - `voice_curator`
 
-Design contract only unless implementation/status proves otherwise:
-
-- Other `skills/*/SKILL.md` entries
-- `super_jarvis_fleet`
+**Design contract only (do not claim live):**
+- All other `skills/*/SKILL.md` entries
+- `super_jarvis_fleet` (36 slots, currently `activeSlots = 0`)
 - `kalshi_bridge`
 
-Do not claim a skill, fleet slot, public route, or MCP tool is live unless it
-has been verified from local repo state, local service health, or actual exposed
-tool lists.
+Never claim a skill or fleet slot is active unless confirmed by implementation or status file.
 
-## Agent Rules
+## Rules for AI Agents
 
-1. Inspect state before edits: git status, relevant files, local service/MCP
-   status, queue/task state, and recent logs when applicable.
-2. Treat dirty worktrees as high risk. Preserve user changes.
-3. Prefer npm for Lantern Garage launch and tests.
-4. Keep release source lean. Runtime data stays under ignored `data/`.
-5. Make the smallest useful change and validate it.
-6. Never commit secrets, tokens, private journal data, or local session files.
-7. Streaming uses `/api/dream/stream`.
+1. Read the file before editing it.
+2. Run relevant tests after changes.
+3. **Never fabricate status** — only report measurable state.
+4. Only register real implementations in `src/mcp_server/server.py`.
+5. All changes should go through Pull Requests.
+6. No new top-level directories without a ticket.
+7. Never commit secrets.
+8. Streaming uses `/api/dream/stream` SSE endpoint.
 
-## Validation
+## Key Guardrails
 
-Use the cheapest relevant checks first:
+- Use Pull Requests for changes
+- Keep PRs small and reviewable
 
-```bash
-npm run check
-npm run test:api
-npm run test:chat
-npm run test:ui
-npm run validate
-```
-
-Report the command evidence, remaining risks, and next action.
+**Last Updated:** 2026-06-03

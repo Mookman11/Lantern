@@ -153,25 +153,32 @@ def generate_document_text(pages: int = 100) -> bytes:
 
 
 def generate_config_yaml(count: int = 500) -> bytes:
-    """Service config YAML with repeated structure."""
+    """Kubernetes-style YAML with repeated structure."""
     out = io.StringIO()
     services = ["api-gateway", "dream-journal", "csf-worker", "search-index", "convergence"]
-    packages = ["@lantern/api", "@lantern/dream", "@lantern/csf"]
+    images = ["lantern/api:v1.2", "lantern/dream:v2.0", "lantern/csf:v1.0"]
     rng = random.Random(42)
     for i in range(count):
         out.write(
-            f"schemaVersion: v1\n"
-            f"kind: LocalService\n"
+            f"apiVersion: v1\n"
+            f"kind: Deployment\n"
             f"metadata:\n"
             f"  name: {rng.choice(services)}-{i}\n"
-            f"  scope: release\n"
+            f"  namespace: production\n"
             f"spec:\n"
-            f"  workers: {rng.randint(1, 10)}\n"
-            f"  package: {rng.choice(packages)}\n"
-            f"  command: npm start\n"
-            f"  resources:\n"
-            f"    memory: \"{rng.randint(256, 4096)}Mi\"\n"
-            f"    cpu: \"{rng.randint(100, 2000)}m\"\n\n"
+            f"  replicas: {rng.randint(1, 10)}\n"
+            f"  selector:\n"
+            f"    matchLabels:\n"
+            f"      app: {rng.choice(services)}\n"
+            f"  template:\n"
+            f"    spec:\n"
+            f"      containers:\n"
+            f"      - name: app\n"
+            f"        image: {rng.choice(images)}\n"
+            f"        resources:\n"
+            f"          limits:\n"
+            f"            memory: \"{rng.randint(256, 4096)}Mi\"\n"
+            f"            cpu: \"{rng.randint(100, 2000)}m\"\n\n"
         )
     return out.getvalue().encode("utf-8")
 

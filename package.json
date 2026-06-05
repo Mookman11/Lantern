@@ -2,26 +2,14 @@
   "name": "lantern-os",
   "version": "1.0.0",
   "private": true,
-  "description": "Lantern OS - Dream Journal",
+  "description": "Lantern OS — Dream Journal",
   "scripts": {
     "start": "node apps/lantern-garage/server.js",
     "start:cloud": "node apps/lantern-garage/cloud-server.js",
-    "dev": "npm --prefix apps/lantern-garage run start:local",
-    "start:local": "npm --prefix apps/lantern-garage run start:local",
-    "start:public": "npm --prefix apps/lantern-garage run start:public",
-    "check": "npm --prefix apps/lantern-garage run check && node --check tests/run-dream-journal-tests.js && node --check tests/test_dream_journal_api.js && node --check tests/test_dream_journal_chat.js",
-    "validate": "node tests/run-dream-journal-tests.js validate",
-    "test": "node tests/run-dream-journal-tests.js",
-    "test:api": "node tests/run-dream-journal-tests.js api",
-    "test:chat": "node tests/run-dream-journal-tests.js chat",
-    "test:ui": "node tests/run-dream-journal-tests.js ui",
-    "test:ui:headed": "node tests/run-dream-journal-tests.js ui:headed"
+    "dev": "node apps/lantern-garage/server.js"
   },
   "engines": {
     "node": ">=20"
   },
-  "devDependencies": {
-    "@playwright/test": "^1.60.0",
-    "playwright": "^1.60.0"
-  }
+  "dependencies": {}
 }

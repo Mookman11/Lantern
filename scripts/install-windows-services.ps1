@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Install Lantern OS Rust binaries as Windows Services
+# Install Lantern OS Rust binaries as Windows Services (no Docker required)
 # Usage: .\scripts\install-windows-services.ps1
 # Requires: nssm.exe in PATH (download from https://nssm.cc/)
 
@@ -81,4 +81,4 @@ Write-Host "  Start:   net start LanternCSF"
 Write-Host "  Remove:  nssm remove LanternCSF confirm"
 Write-Host "  Restart: .\scripts\restart-headless.ps1"
 
-Write-Host "`nDone. Services auto-start on boot using the local Windows runtime." -ForegroundColor Cyan
+Write-Host "`nDone. Services auto-start on boot. No Docker required." -ForegroundColor Cyan

@@ -3,7 +3,7 @@ const path = require("path");
 const { readJson, readText } = require("./file-queue");
 const { getPowerShellCommand } = require("./powershell");
 
-const repoRoot = process.env.LANTERN_REPO_ROOT || path.resolve(__dirname, "..", "..", "..");
+const repoRoot = path.resolve(__dirname, "..", "..");
 const cloudMirrorsPath = path.join(repoRoot, "manifests", "cloud-mirrors.json");
 const port = Number(process.env.LANTERN_GARAGE_PORT || process.env.PORT || 4177);
 const host = process.env.LANTERN_GARAGE_HOST || (process.env.PORT ? "0.0.0.0" : "127.0.0.1");
@@ -256,7 +256,7 @@ function getCloudMirrorStatus() {
     activeHost: host,
     activePort: port,
     deployBranch: manifest.deployBranch || "master",
-    deployProvider: manifest.deployProvider || "npm-local",
+    deployProvider: manifest.deployProvider || "Render",
     mirrorPolicy: manifest.mirrorPolicy || "Local is primary; cloud URLs are mirrors and must not create separate dashboards.",
     cloudMirrorCount: cloudMirrors.length,
     cloudMirrors,

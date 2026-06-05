@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const LOCAL_APP_ORIGIN = "http://127.0.0.1:4177";
 const CLOUD_TRUTH_DEPLOY_MARKER = "2026-05-29-product-lanes";
-const CLOUD_PROVIDER_LABEL = "npm local + static mirror";
+const CLOUD_PROVIDER_LABEL = "AWS ECS/Fargate";
 const MINING_SAFETY_STRINGS = [
   "Rock and stone", // Deep Rock Galactic reference for teamwork
   "CPU routes to Monero", // CPU mining safety
@@ -366,7 +366,7 @@ function renderCloudMirrors(mirrors) {
 
   $("mirrorPrimary").textContent = localPrimary;
   $("mirrorCount").textContent = `${publicProofCount}/${cloudMirrors.length}`;
-  $("mirrorDeploy").textContent = `${mirrors.deployBranch || "master"} -> ${mirrors.deployProvider || "npm-local"}`;
+  $("mirrorDeploy").textContent = `${mirrors.deployBranch || "master"} -> ${mirrors.deployProvider || "Render"}`;
   $("chatStatus").textContent = window.location.protocol === "file:" ? "preview via local app" : "web app";
   $("tunnelStatus").textContent = publicProofCount > 0 ? "cloud verified" : "cloud candidate";
   $("chatMirrorSummary").textContent = `Local primary: ${localPrimary} | public mirrors: ${publicProofCount}/${cloudMirrors.length} | marker ${CLOUD_TRUTH_DEPLOY_MARKER}`;
@@ -548,7 +548,7 @@ function renderFleet(queue = {}, status = {}) {
   const rows = items.slice(0, 6);
   if (!rows.length) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="4" class="muted">No local queue exposed; public mirrors keep dispatch held.</td>';
+    row.innerHTML = '<td colspan="4" class="muted">No local queue exposed; Render keeps dispatch held.</td>';
     body.appendChild(row);
   } else {
     rows.forEach((item, index) => {
@@ -577,7 +577,7 @@ function renderHff(status = {}) {
 
 function canonicalFrontDoorVerified(cloudMirrors) {
   if (!Array.isArray(cloudMirrors)) return false;
-  return cloudMirrors.some((m) => isVerifiedCloudMirror(m) && !isLocalOnlyUrl(m.url));
+  return cloudMirrors.some((m) => m.verified === true && m.url && m.url.includes("lantern-os-cloud"));
 }
 
 function getFrontDoorUrl(mirrors) {

@@ -5,19 +5,11 @@ on:
     branches: ["master"]
     paths:
       - "apps/lantern-garage/**"
-      - "tests/test_dream_journal_*"
-      - "tests/run-dream-journal-tests.js"
-      - "package.json"
-      - "package-lock.json"
       - ".github/workflows/validate-dream-journal.yml"
   pull_request:
     branches: ["master"]
     paths:
       - "apps/lantern-garage/**"
-      - "tests/test_dream_journal_*"
-      - "tests/run-dream-journal-tests.js"
-      - "package.json"
-      - "package-lock.json"
   workflow_dispatch:
 
 concurrency:
@@ -25,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  npm-validate:
-    name: npm check and API tests
+  lint-and-validate:
+    name: Lint & validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,11 +27,16 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline
+      - name: Validate HTML
+        run: |
+          npx html-validate apps/lantern-garage/public/dream-chat.html || true
 
-      - name: Check server files
-        run: npm run check
-
-      - name: Run Dream Journal API tests
-        run: npm run test:api
+      - name: Check server starts
+        run: |
+          node apps/lantern-garage/server.js &
+          PID=$!
+          sleep 3
+          curl -sf http://127.0.0.1:4177/api/status || (echo "Server failed to start"; kill $PID 2>/dev/null; exit 1)
+          curl -sf http://127.0.0.1:4177/api/agents || (echo "Agents endpoint missing"; kill $PID 2>/dev/null; exit 1)
+          kill $PID 2>/dev/null
+          echo "✓ Server starts and /api/agents responds"

@@ -1,7 +1,7 @@
 const path = require("path");
 const { spawn } = require("child_process");
 
-const repoRoot = process.env.LANTERN_REPO_ROOT || path.resolve(__dirname, "..", "..", "..");
+const repoRoot = path.resolve(__dirname, "..", "..");
 
 function unifiedAgentStream(message, persona, provider, context) {
   return new Promise((resolve, reject) => {

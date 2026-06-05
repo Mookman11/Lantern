@@ -55,10 +55,10 @@ Optional node metadata can help show distribution without publishing raw IP addr
 | Variable | Default | Purpose |
 |---|---|---|
 | `NODE_NAME` | `node-<uuid>` | Display name |
-| `PLATFORM` | `web` | Runtime surface, such as `web`, `public`, or `local-dev` |
+| `PLATFORM` | `web` | Runtime surface, such as `web`, `docker`, or `local-dev` |
 | `NODE_REGION` | empty | Optional self-reported region or location label |
 | `OPERATOR_TYPE` | empty | Optional self-reported operator class, such as `independent`, `lab`, or `cloud` |
-| `DEPLOYMENT_TYPE` | empty | Optional self-reported deployment type, such as `public`, `local`, or `dev` |
+| `DEPLOYMENT_TYPE` | empty | Optional self-reported deployment type, such as `render`, `railway`, `docker`, or `local` |
 | `NODE_PUBLIC_KEY` | generated node key | Node identity key advertised for future admission checks |
 | `MIN_CONSENSUS_NODES` | `3` | Minimum verified active nodes needed before consensus can be security-backed |
 | `HFF_WRITE_TOKEN` | empty | Shared token required for privileged production state-changing API calls |

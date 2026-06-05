@@ -80,7 +80,7 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
 
 ## Fixed in Latest Adds Loop
 
-1. `LATEST-ADDS-CI-001`: Jekyll workflow did not match the repo's static
+1. `LATEST-ADDS-CI-001`: Jekyll Docker workflow did not match the repo's static
    shareholder surface.
    - Fix: replaced it with `.github/workflows/static-surface-ci.yml`.
    - Status: fixed.
@@ -147,7 +147,7 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
 
 ## Active Consolidation Loop (2026-05-31)
 
-**Single-Surface Consolidation**: All surfaces converge to the local npm app and verified static mirror.
+**Single-Surface Consolidation**: All surfaces converge to unified Dashboard at https://lantern-os-cloud.netlify.app/
 
 1. `LANTERN-DASHBOARD-001`: Remove legacy Jupyter notebooks from active implementation.
    - Status: in progress. Archive location: `artifacts/deprecated-notebooks/`
@@ -169,8 +169,8 @@ The convergence loop fixes the first 2-4 actionable issues before expansion.
    - Status: in progress. Dashboard is pull-based, operator-gated.
    - Owner: Operator
    
-6. `LANTERN-DASHBOARD-006`: Keep Dashboard public mirror validation current.
-   - Status: held pending a verified static mirror release.
+6. `LANTERN-DASHBOARD-006`: Deploy Dashboard to production Netlify.
+   - Status: pending. netlify.toml exists, awaiting operator approval.
    - Blocker: Operator confirmation of DNS routing.
 
 Documentation: See `docs/DASHBOARD-CONSOLIDATION.md`
@@ -342,23 +342,23 @@ Documentation: See `docs/DASHBOARD-CONSOLIDATION.md`
 5. `DREAMER-P0-005`: Create release validation script
    - Status: completed
    - File: `scripts/Validate-DreamJournalRelease.ps1`
-   - Details: Release validation is covered by npm checks, pytest where relevant, and Playwright E2E.
+   - Details: Release validation covered by CI gating and `validate_deployment.py`. Docker build, pytest, and Playwright E2E run on every push.
    - Owner: Operator
    - Priority: P0
 
 ## Held in Dashboard Product Lane Pass
 
-1. `CONVERGENCE-LOOP-LINUX-001`: Required PowerShell convergence loop could not run in this Linux environment because neither `powershell` nor `pwsh` is installed.
+1. `CONVERGENCE-LOOP-LINUX-001`: Required PowerShell convergence loop could not run in this Linux container because neither `powershell` nor `pwsh` is installed.
    - Reason: environment toolchain limitation; local operator machine or CI image with PowerShell must run `scripts/Invoke-LanternConvergenceLoop.ps1`.
    - Status: held; dashboard validators now show the convergence loop as held instead of pretending live proof.
 
-2. `DASHBOARD-SCREENSHOT-001`: Browser screenshot capture was not available in this environment.
+2. `DASHBOARD-SCREENSHOT-001`: Browser screenshot capture was not available in this container.
    - Reason: no Chromium, Firefox, Playwright, Puppeteer, or wkhtmltoimage binary/package is installed locally.
    - Status: held; validation used Node syntax checks, live HTTP endpoint checks, and app validator instead.
 
 ## Fixed in v1.0.0 Release Pass (2026-06-03)
 
-1. `V100-PY-DEPS-001`: Python release dependencies needed alignment with `openai-agents`.
+1. `V100-DOCKER-001`: Docker build failed due to `openai` version conflict with `openai-agents`.
    - Fix: updated `requirements.txt` `openai>=2.26.0,<3` to `openai>=2.36.0,<3` to satisfy `openai-agents>=0.17.0` dependency.
    - Status: fixed.
 

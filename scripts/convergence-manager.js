@@ -122,15 +122,15 @@ function scan() {
     }
   }
 
-  // 6. deploy.yml must not reference retired hosted release services
+  // 6. deploy.yml — must NOT reference AWS ECS (retired)
   if (has(".github/workflows/deploy.yml")) {
     const deploy = read(".github/workflows/deploy.yml");
     if (deploy.includes("aws-actions") || deploy.includes("ecs")) {
       issues.push(issue(
         "DEPLOY:AWS_REMNANT",
         "high",
-        "deploy.yml still references retired hosted release services",
-        "Replace deploy.yml with the GitHub Pages static mirror workflow"
+        "deploy.yml still references AWS ECS (retired — use GitHub Pages + Railway)",
+        "Replace deploy.yml with the GitHub Pages + Railway workflow"
       ));
     }
   }

@@ -129,7 +129,7 @@ wallet/cash rules (section 7):
 - No mining binary, script, or library in `main` / `master` / `dev` by default.
 - Any mining integration lives behind a feature flag that is `false` by default
   and must be explicitly enabled by the user.
-- No miner code is bundled in installers, release bundles, or CI artifacts unless
+- No miner code is bundled in Docker images, installers, or CI artifacts unless
   there is a separate, clearly labeled "mining edition" build.
 - Projected mining revenue is `projection` class evidence — held, never
   promoted to "cleared cash."

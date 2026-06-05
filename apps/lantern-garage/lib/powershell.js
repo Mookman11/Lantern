@@ -1,7 +1,7 @@
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
-const repoRoot = process.env.LANTERN_REPO_ROOT || path.resolve(__dirname, "..", "..", "..");
+const repoRoot = path.resolve(__dirname, "..", "..");
 
 function commandExists(command) {
   const probe = process.platform === "win32" ? "where" : "which";

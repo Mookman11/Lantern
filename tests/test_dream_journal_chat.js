@@ -2,22 +2,21 @@
  * Dream Journal v0 Chat Tests
  * Tests the /api/dream/chat endpoint with single-agent selection.
  *
- * Preferred entrypoint: npm run test:chat
+ * Run: node tests/test_dream_journal_chat.js
  */
 
 const http = require("http");
 const assert = require("assert");
 
-const BASE = process.env.LANTERN_GARAGE_TEST_BASE_URL || "http://127.0.0.1:4177";
-const BASE_URL = new URL(BASE);
+const BASE = "http://127.0.0.1:4177";
 let passed = 0;
 let failed = 0;
 
 async function request(method, path, body) {
   return new Promise((resolve, reject) => {
     const opts = {
-      hostname: BASE_URL.hostname,
-      port: BASE_URL.port || 80,
+      hostname: "127.0.0.1",
+      port: 4177,
       path,
       method,
       headers: { "Content-Type": "application/json" },
@@ -201,7 +200,7 @@ async function run() {
 
 run().catch((err) => {
   console.error("\nFATAL: Could not connect to server at", BASE);
-  console.error("Preferred entrypoint: npm run test:chat");
+  console.error("Make sure lantern-garage is running: node apps/lantern-garage/server.js");
   console.error(err.message);
   process.exit(1);
 });

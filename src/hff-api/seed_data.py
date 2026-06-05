@@ -1463,7 +1463,7 @@ ECOSYSTEM_MEASUREMENTS = [
 SPATIAL_MEASUREMENTS = [
 
     # =====================================================================
-    # OBSERVABLE UNIVERSE - the reference frame
+    # OBSERVABLE UNIVERSE — the container
     # =====================================================================
 
     # --- Planck Collaboration (2018) — age of the universe ----------------

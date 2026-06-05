@@ -113,4 +113,4 @@ def suggest_ritual(recent_dreams, operator_state=None):
 
 ## Integration Note
 
-Rituals are optional. The Dream Journal works without them. But when used, they create a predictable frame that makes the symbolic work feel safe and intentional.
+Rituals are optional. The Dream Journal works without them. But when used, they create a predictable container that makes the symbolic work feel safe and intentional.

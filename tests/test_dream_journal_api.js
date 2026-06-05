@@ -1,22 +1,21 @@
 /**
  * Dream Journal REST API tests
- * Runs against a live lantern-garage server.
- * Preferred entrypoint: npm run test:api
+ * Runs against a live lantern-garage server on port 4177.
+ * Start the server before running: node apps/lantern-garage/server.js
  */
 
 const http = require("http");
 const assert = require("assert");
 
-const BASE = process.env.LANTERN_GARAGE_TEST_BASE_URL || "http://127.0.0.1:4177";
-const BASE_URL = new URL(BASE);
+const BASE = "http://127.0.0.1:4177";
 let passed = 0;
 let failed = 0;
 
 async function request(method, path, body) {
   return new Promise((resolve, reject) => {
     const opts = {
-      hostname: BASE_URL.hostname,
-      port: BASE_URL.port || 80,
+      hostname: "127.0.0.1",
+      port: 4177,
       path,
       method,
       headers: { "Content-Type": "application/json" },
@@ -216,7 +215,7 @@ async function run() {
   await test("stream returns text/event-stream", async () => {
     return new Promise((resolve, reject) => {
       const req = http.request(
-        { hostname: BASE_URL.hostname, port: BASE_URL.port || 80, path: "/api/dream/stream?message=test+stream", method: "GET" },
+        { hostname: "127.0.0.1", port: 4177, path: "/api/dream/stream?message=test+stream", method: "GET" },
         (res) => {
           let data = "";
           res.on("data", (c) => (data += c));
@@ -238,7 +237,7 @@ async function run() {
 
   await test("dashboard returns 200 HTML", async () => {
     const r = await new Promise((resolve, reject) => {
-      const req = http.request({ hostname: BASE_URL.hostname, port: BASE_URL.port || 80, path: "/", method: "GET" }, (res) => {
+      const req = http.request({ hostname: "127.0.0.1", port: 4177, path: "/", method: "GET" }, (res) => {
         let data = "";
         res.on("data", (c) => (data += c));
         res.on("end", () => resolve({ status: res.statusCode, body: data }));
@@ -253,7 +252,7 @@ async function run() {
 
   await test("dashboard has stat cards", async () => {
     const r = await new Promise((resolve, reject) => {
-      const req = http.request({ hostname: BASE_URL.hostname, port: BASE_URL.port || 80, path: "/", method: "GET" }, (res) => {
+      const req = http.request({ hostname: "127.0.0.1", port: 4177, path: "/", method: "GET" }, (res) => {
         let data = "";
         res.on("data", (c) => (data += c));
         res.on("end", () => resolve({ status: res.statusCode, body: data }));
@@ -276,7 +275,7 @@ async function run() {
 
 run().catch((err) => {
   console.error("\nFATAL: Could not connect to server at", BASE);
-  console.error("Preferred entrypoint: npm run test:api");
+  console.error("Make sure lantern-garage is running: node apps/lantern-garage/server.js");
   console.error(err.message);
   process.exit(1);
 });

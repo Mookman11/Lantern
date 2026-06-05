@@ -10954,17 +10954,17 @@ These issues are held and cannot be auto-fixed by the convergence loop:
 - **Impact:** Design contract exists on remote; live runtime proof requires local orchestrator report
 - **Action:** Operator must provide machine-specific orchestrator count report
 
-### CONVERGENCE-LOOP-LINUX-001: PowerShell Availability
+### CONVERGENCE-LOOP-LINUX-001: PowerShell in Linux Container
 - **Status:** Held
 - **Reason:** Environment toolchain limitation (no powershell/pwsh installed)
-- **Impact:** Convergence loop cannot run where PowerShell is unavailable
+- **Impact:** Convergence loop cannot run in Linux container
 - **Action:** Run convergence loop on local operator machine or CI image with PowerShell
 - **Note:** Dashboard validators now show this as held instead of pretending live proof
 
 ### DASHBOARD-SCREENSHOT-001: Browser Screenshot Capture
 - **Status:** Held
 - **Reason:** No Chromium, Firefox, Playwright, Puppeteer, or wkhtmltoimage binary/package installed
-- **Impact:** Screenshot capture unavailable in the current runtime
+- **Impact:** Screenshot capture unavailable in container
 - **Action:** Install browser dependencies if screenshot validation is required
 - **Note:** Validation uses Node syntax checks, HTTP endpoint checks, and app validator instead
 
@@ -14341,7 +14341,7 @@ This receipt consolidates the new Lantern OS report direction:
 |---|---|---|
 | Prediction-market statistics | research-only seed | No broker login, no live trade instruction, no profit claim. |
 | Trade gamble product | product setup spec | Supports capped naked long call/put workflow as manual/product architecture. |
-| Execution adapter | architecture spec | Not local-only; operator-controlled deployment can be local, VPS, cloud, CI, or broker-supported runtime. |
+| Execution adapter | architecture spec | Not local-only; operator-controlled deployment can be local, VPS, cloud, CI, container, or broker-supported runtime. |
 | Money validation | PR-gated test harness | Dry-run, paper, live_locked, live_confirm, live_armed, emergency_stop ladder. |
 | Oracle ARM + Ollama | infra cost report | Low-cost model backend for Lantern OS agents and RAG tasks. |
 | Rationality/Supergrok | conceptual lore receipt | Treat as design contract and knowledge model, not proof of live autonomous fleet. |

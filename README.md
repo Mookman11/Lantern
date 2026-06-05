@@ -1,71 +1,124 @@
 # Lantern OS
 
-Lantern OS is a local-first Dream Journal and operator cockpit. The release
-runtime is the Node.js Lantern Garage app in `apps/lantern-garage`.
+[![CI](https://github.com/alex-place/lantern-os/actions/workflows/ci.yml/badge.svg)](https://github.com/alex-place/lantern-os/actions/workflows/ci.yml)
+[![Deploy](https://github.com/alex-place/lantern-os/actions/workflows/deploy.yml/badge.svg)](https://github.com/alex-place/lantern-os/actions/workflows/deploy.yml)
+[![Validate Dream Journal](https://github.com/alex-place/lantern-os/actions/workflows/validate-dream-journal.yml/badge.svg)](https://github.com/alex-place/lantern-os/actions/workflows/validate-dream-journal.yml)
 
-## Current Release Surface
+Local-first OS cockpit built by Alex Place.
 
-| Surface | Status | Notes |
-|---|---|---|
-| Lantern Garage | Active | Local HTTP app on `http://127.0.0.1:4177` |
-| Dream Journal | Active | Journal UI plus `/dream-chat.html` agent chat backed by local JSONL files. Chat must return a configured-provider or local fallback agent response, or fail explicitly with evidence. |
-| Public mirror | Read-only | Static GitHub Pages mirror for public surfaces only |
-| MCP/orchestrator | Local-held | Verify local health and exposed tools before trusting any remote route |
+**Current Focus (2026-06):** Dream Journal V1.0.0 + single container (web + Discord bot).
 
-Private journal entries, notes, RAG cache records, and runtime receipts are
-written under `data/` and ignored by Git.
+## What it does today
 
-## Requirements
+| Component | Description |
+|-----------|-------------|
+| **Dream Journal** | Freeform RP chat interface. No hardcoded fields — just talk. Chat at top, fixed input bar at bottom. Data stored in browser localStorage with JSONL export. |
+| **Lantern Garage server** | Node.js HTTP server (`apps/lantern-garage/server.js`). Serves the Dream Journal UI and REST API on port 4177. |
+| **Imagniverse / status cube** | 4D routing matrix for Lantern OS state — a routing and inspection interface, not physical hardware. Lives in `surfaces/`. |
+| **Payment bridge** | Stub for Stripe invoice workflows (`apps/lantern-garage/payment-bridge/`). Not connected to a live Stripe account. |
+| **CSF / CADD** | Convergence-Fitted Searchable Binary Archive format (v1.0 spec) + Context Archive for Dream Data. Used for memory exports and symbolic data compression. |
+| **GitHub Pages / Netlify static UI** | Static surfaces deployed from `apps/lantern-garage/public/` (pitch, proof, pricing, wish-door, dream-journal). |
 
-- Node.js 20 or newer
-- npm
-- Python 3.11 or newer for Python/MCP tests and scripts
-
-## Run Locally
-
-```bash
-npm install
-npm start
-```
-
-Open `http://127.0.0.1:4177` for the journal dashboard.
-
-Open `http://127.0.0.1:4177/dream-chat.html` for Dream Journal chat. AI
-interpretation is required for chat requests: it must answer through a
-configured provider or local fallback agent, or report an explicit failure.
-
-Useful npm commands:
-
-```bash
-npm run dev
-npm run check
-npm run validate
-npm test
-npm run test:api
-npm run test:chat
-npm run test:ui
-```
-
-`npm test` starts Lantern Garage if needed, waits for `/api/health`, runs the
-API/chat/UI tests, and shuts down the server it started.
-
-## Local Data
-
-`data/` is local runtime state, not release source. The app recreates needed
-subdirectories when it writes journal entries, conversations, RAG cache records,
-or validation receipts.
-
-## Public Mirror
-
-The GitHub Pages mirror serves static public files. It is not the private app
-runtime and does not carry local journal data.
-
-## What Is Not In Scope
+## What is NOT in scope
 
 - No live trading or financial execution.
-- No production payment integration.
-- No private journal sync by default.
-- No remote dispatch without local MCP/tool verification.
+- No production Stripe integration (payment bridge is a stub).
+- No actual outreach automation (outreach scripts are drafts only).
+- No cloud data storage — all journal data stays on your machine.
+
+## Local Development URLs
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Lantern Garage** | http://127.0.0.1:4177 | Main web server |
+| **Dream Journal (Orion)** | http://127.0.0.1:4177/dream-chat-orion.html | Clean V1 chat interface |
+| **Dream Journal (Classic)** | http://127.0.0.1:4177/dream-chat.html | Original chat UI |
+
+## How to run
+
+### Prerequisites
+
+```
+node --version   # v20 or higher required
+```
+
+### Local (default)
+
+```bash
+node apps/lantern-garage/server.js
+# opens at http://127.0.0.1:4177
+```
+
+Or with npm:
+
+```bash
+npm start --prefix apps/lantern-garage
+```
+
+### Cloud (Railway)
+
+Railway auto-deploys from `master`. The `railway.json` and `cloud-server.js` handle the cloud entrypoint. Set `PORT` in Railway environment variables; the server binds to `0.0.0.0` when `PORT` is present.
+
+### Static UI (GitHub Pages)
+
+Static surfaces are deployed from the `gh-pages` branch via the GitHub Actions workflow in `.github/workflows/`.
+
+## Running Services
+
+| Service | Port | Status | URL | Process |
+|---------|------|--------|-----|---------|
+| **Lantern Garage** | `4177` | Running | http://127.0.0.1:4177 | `node apps/lantern-garage/server.js` |
+| **GPT Web API** | `3000` | Running | http://127.0.0.1:3000 | `node services/gpt-web-api/server.js` |
+| **MCP Server** | `8771` | Running | http://127.0.0.1:8771 | `python src/mcp_server/server.py` |
+| **Discord Radio Bot** | N/A | Needs token | — | `python src/discord_lounge_bot/bot.py` |
+
+Start all:
+```bash
+# Terminal 1 — Garage
+npm start --prefix apps/lantern-garage
+
+# Terminal 2 — GPT Web API
+npm start --prefix services/gpt-web-api
+
+# Terminal 3 — MCP Server
+python src/mcp_server/server.py
+
+# Terminal 4 — Discord Bot (requires token)
+python src/discord_lounge_bot/bot.py
+```
+
+## Deployed URLs
+
+| Environment | URL | Description |
+|-------------|-----|-------------|
+| **GitHub Pages** | https://alex-place.github.io/lantern-os/ | Static UI (pitch, proof, pricing, wish-door, dream-journal) |
+| **Repository** | https://github.com/alex-place/lantern-os | Source code, issues, PRs |
+
+## IDE Integration (Windsurf / Cascade MCP)
+
+The Lantern OS MCP server is linked to Windsurf/Cascade via a stdio bridge.
+
+1. Start the MCP server (port 8771):
+   ```bash
+   python src/mcp_server/server.py
+   ```
+2. Windsurf reads `.windsurf/mcp.json` and connects through `scripts/mcp_stdio_bridge.py`.
+3. Exposed tools: `queue_status`, `task_intake`, `dispatch_work`, `boot_check`, `list_skills`, `get_status`, `fleet_status`.
+
+## User Guides
+
+| Workstream | Guide | Description |
+|------------|-------|-------------|
+| **Tesseract Convergence** | `manifests/TESSERACT-ARCHITECTURE.md` | 4-layer hypercube (Surface, Interface, Convergence, Core) — personas, slots, connector, dollhouse CSF, convergence engine, inspector |
+| **Unified Agent Connector** | `src/unified_agent_connector.py` docstring | Multi-provider AI streaming with health checks — OpenAI, Anthropic, Google, Mistral |
+| **CSF Dollhouse** | `src/cadd_dollhouse_csf.py` docstring | Convergence-Fitted Searchable Binary format for memory archives and segment building |
+| **Agent Inspector** | `scripts/agent_inspector.py` docstring | Health and self-monitoring daemon with tesseract layer checks |
+| **MCP Connector** | `docs/MCP-CONNECTOR.md` | Local-first MCP connector, RAG-house indexing, safety contract |
+| **Dream Journal** | `apps/lantern-garage/public/dream-journal.html` | Freeform RP chat interface with localStorage + JSONL export |
+
+## Backlog
+
+Linear is the source of truth for the backlog. GitHub Issues are intake only and may lag behind Linear.
 
 ## Contributing
 

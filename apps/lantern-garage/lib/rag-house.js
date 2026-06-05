@@ -3,7 +3,7 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 const { readJsonl } = require("./file-queue");
 
-const repoRoot = process.env.LANTERN_REPO_ROOT || path.resolve(__dirname, "..", "..", "..");
+const repoRoot = path.resolve(__dirname, "..", "..");
 const flatRagHousePath = path.join(repoRoot, "data", "rag-house", "flat-rag-house-latest.json");
 const flatRagHouseManifestPath = path.join(repoRoot, "manifests", "FLAT-RAG-HOUSE-LATEST.md");
 

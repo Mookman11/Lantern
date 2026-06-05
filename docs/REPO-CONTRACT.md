@@ -20,6 +20,7 @@
 ✅ **Supporting infrastructure:**
 - `scripts/` — Automation for local development and ops (watchdog, orchestrator supervisor)
 - `tests/` — Test coverage for shipped code
+- `docker/` — Container definitions for deployment
 - `config/` — Configuration templates (non-secret)
 
 ✅ **Documentation that explains shipped code:**

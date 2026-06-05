@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const repoRoot = process.env.LANTERN_REPO_ROOT || path.resolve(__dirname, "..", "..", "..");
 const writeQueues = new Map();
 
 function enqueueFileWrite(filePath, operation) {
@@ -35,7 +34,7 @@ async function writeTextQueued(filePath, text) {
 
 function readText(relativePath, fallback = "") {
   try {
-    return fs.readFileSync(path.join(repoRoot, relativePath), "utf8").replace(/^\uFEFF/, "");
+    return fs.readFileSync(path.join(path.resolve(__dirname, "..", ".."), relativePath), "utf8").replace(/^\uFEFF/, "");
   } catch {
     return fallback;
   }

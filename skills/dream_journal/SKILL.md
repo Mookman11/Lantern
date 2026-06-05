@@ -1,12 +1,12 @@
 ---
 name: dream-journal-v2
-description: Dream Journal v2 for Lantern OS. Persistent characters (Fox, Tower), Bayesian fallacy detection, cognitive layer with mirror prompts, Flask API routes, Discord slash commands, Voice Lounge music queue, and integrated symbolic door system (science + symbology merged). Integrates with the local npm release surface.
+description: Dream Journal v2 for Lantern OS. Persistent characters (Fox, Tower), Bayesian fallacy detection, cognitive layer with mirror prompts, Flask API routes, Discord slash commands, Voice Lounge music queue, and integrated symbolic door system (science + symbology merged). Integrates with unified Docker deployment.
 ---
 
 # Dream Journal v2
 
 Status: production-ready (feature/LAN-124-dream-journal-v2)  
-Scope: local operator dream logging, lucidity tracking, symbolic analysis, persistent character memory, Bayesian fallacy detection, Voice Lounge audio, npm-first app integration, merged symbolic-technical door system, CSF v0.3 archive export  
+Scope: local operator dream logging, lucidity tracking, symbolic analysis, persistent character memory, Bayesian fallacy detection, Voice Lounge audio, Docker integration, merged symbolic-technical door system, CSF v0.3 archive export  
 Source: Lantern OS dreamer notebooks (data/dreamer/), Discord bot, Flask API, cognitive_layer.py, symbolic/ + integration/ layers  
 Validation: convergence loop clean; MCP health checks pass; bot imports clean; CSF export functional
 
