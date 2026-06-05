@@ -18,16 +18,17 @@ Current focus: Dream Journal Orion Edition, local/private agent workflows, and p
 2. [Current Capabilities](#current-capabilities)
 3. [Architecture](#architecture)
 4. [Core Concepts](#core-concepts)
-5. [PCSF Provider Capacity Fallback](#pcsf-provider-capacity-fallback)
-6. [Convergence and Receipts](#convergence-and-receipts)
-7. [Memory, RAG, and CSF/CADD](#memory-rag-and-csfcadd)
-8. [MCP and Agent Runtime](#mcp-and-agent-runtime)
-9. [Run Locally](#run-locally)
-10. [Testing and Validation](#testing-and-validation)
-11. [Documentation Map](#documentation-map)
-12. [Planned Documentation Migration](#planned-documentation-migration)
-13. [Contributing](#contributing)
-14. [Privacy](#privacy)
+5. [Dream Journal and Personas](#dream-journal-and-personas)
+6. [PCSF Provider Capacity Fallback](#pcsf-provider-capacity-fallback)
+7. [Convergence and Receipts](#convergence-and-receipts)
+8. [Memory, RAG, and CSF/CADD](#memory-rag-and-csfcadd)
+9. [MCP and Agent Runtime](#mcp-and-agent-runtime)
+10. [Run Locally](#run-locally)
+11. [Testing and Validation](#testing-and-validation)
+12. [Documentation Map](#documentation-map)
+13. [Planned Documentation Migration](#planned-documentation-migration)
+14. [Contributing](#contributing)
+15. [Privacy](#privacy)
 
 ---
 
@@ -46,14 +47,17 @@ capture context
 
 The project is intentionally local-first. Runtime data, dream journal entries, local receipts, and private operational state are designed to stay on the operator machine unless explicitly exported.
 
+The README is intended as the public-facing entry point. Detailed runtime, convergence, and archive policies live in the linked docs and manifests.
+
 ---
 
 ## Current Capabilities
 
 | Area | Current Capability |
 |---|---|
-| Dream Journal | Freeform chat-style dream journal with local browser storage and JSONL export. |
-| Lantern Garage | Node.js web server for the Dream Journal UI and API. |
+| Dream Journal | Freeform chat-style dream journal with local browser storage, JSONL export, and multi-turn chat flow. |
+| Lantern Garage | Node.js web server for the Dream Journal UI, API routes, static assets, and installable PWA surface. |
+| Persona Routing | Symbolic personas route messages through the same provider/backend pipeline with different system prompts. |
 | Convergence Loop | 12-step operating method for inspection, evidence mapping, validation, and promotion decisions. |
 | Agent Fleet Design | 36-slot convergence-agent matrix with a 64-worker elastic target as a planning and receipt contract. |
 | CSF/CADD | Symbolic memory/archive path for structured, searchable, convergence-fitted data. |
@@ -61,6 +65,7 @@ The project is intentionally local-first. Runtime data, dream journal entries, l
 | MCP Connector | Local-first connector path for verifying tools, endpoints, and agent-facing runtime surfaces. |
 | Provider Gateway | Multi-provider routing for local and external model access where configured. |
 | PCSF | Provider Capacity Safety Frame for capacity class, fallback routing, and provider/local claim clarity. |
+| Discord Bot | Optional Discord integration using the same broader convergence and access model. |
 
 ---
 
@@ -70,8 +75,12 @@ The project is intentionally local-first. Runtime data, dream journal entries, l
 lantern-os/
 ├── apps/
 │   └── lantern-garage/          # Web server, Dream Journal UI, REST API, PWA assets
+│       ├── server.js            # Main Node.js entry point
+│       ├── routes/              # Domain API routes
+│       ├── lib/                 # Chat, streaming, and storage helpers
+│       └── public/              # Browser UI, manifest, service worker
 ├── src/
-│   ├── convergence_io_engine.py  # Convergence inspection and orchestration
+│   ├── convergence_io_engine.py # Convergence inspection and orchestration
 │   ├── unified_agent_connector.py
 │   ├── csf/                     # CSF memory/archive components
 │   ├── mcp_server/              # MCP server and local agent tool surface
@@ -100,6 +109,30 @@ lantern-os/
 | CSF | Convergence-Fitted Searchable Archive for structured symbolic data. |
 | CADD | Capture, Assess, Distill, Dock pipeline for moving material into CSF. |
 | PCSF | Provider Capacity Safety Frame for routing capacity and fallback decisions. |
+
+---
+
+## Dream Journal and Personas
+
+The Dream Journal is the main user-facing surface. It is designed for conversational capture instead of rigid forms.
+
+| Surface | Description |
+|---|---|
+| Dream Journal chat | Freeform local journaling flow for dreams, memories, symbolic material, and follow-up reflection. |
+| Local export | JSONL-style export path for portable review and future CSF/CADD ingestion. |
+| PWA mode | Browser-installable surface with offline-friendly behavior where supported. |
+| Provider routing | Uses configured local or external providers through the unified connector. |
+
+Lantern personas provide different interaction modes over the same backend pipeline.
+
+| Persona | Routing cues | Role |
+|---|---|---|
+| Keystone | truth, pattern, anchor | Grounded integration and direct technical review. |
+| Waterfall | water, reconnection, patient reflection | Gentle reflective mode. |
+| Xenon | spacecraft, navigation, exploration | Exploratory and collaborative mode. |
+| Blinkbug | static, glitch, chaos | Creative divergent mode. |
+| Comet Leap | trajectory, momentum, flourishing | Fast synthesis and execution framing. |
+| Founder | wish, protection, lantern | Protective operator-oriented framing. |
 
 ---
 
@@ -322,6 +355,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Update-InternalHou
 |---|---|
 | [AGENTS.md](AGENTS.md) | Required operating instructions for AI coding agents. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow, branch model, and repo rules. |
+| [docs/DREAM-JOURNAL-USER-GUIDE.md](docs/DREAM-JOURNAL-USER-GUIDE.md) | Dream Journal user guide. |
+| [docs/DREAM-JOURNAL-QUICKSTART.md](docs/DREAM-JOURNAL-QUICKSTART.md) | Dream Journal quick start. |
 | [docs/CONVERGENCE-LOOP.md](docs/CONVERGENCE-LOOP.md) | 12-step convergence operating method. |
 | [manifests/CONVERGENCE-LOOP-AGENT-FLEET.md](manifests/CONVERGENCE-LOOP-AGENT-FLEET.md) | 36-slot convergence-agent design and receipt contract. |
 | [docs/MCP-CONNECTOR.md](docs/MCP-CONNECTOR.md) | Local-first MCP connector and safety contract. |
@@ -331,8 +366,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Update-InternalHou
 | [caad/dollhouse-csf-upgrade.md](caad/dollhouse-csf-upgrade.md) | CADD intake flow for CSF archives. |
 | [docs/PUBLIC-REPORT-EVIDENCE-BOUNDARY.md](docs/PUBLIC-REPORT-EVIDENCE-BOUNDARY.md) | Evidence and claim-labeling guidance for reports. |
 | [docs/REPO-CONTRACT.md](docs/REPO-CONTRACT.md) | Repository scope and cleanup contract. |
-| [docs/DREAM-JOURNAL-USER-GUIDE.md](docs/DREAM-JOURNAL-USER-GUIDE.md) | Dream Journal user guide. |
-| [docs/DREAM-JOURNAL-QUICKSTART.md](docs/DREAM-JOURNAL-QUICKSTART.md) | Dream Journal quick start. |
 
 ---
 
