@@ -46,7 +46,7 @@ const AGENT_PERSONAS = [
 
 function selectAgent(message) {
   const lower = String(message || "").toLowerCase();
-  const scores = AGENT_PERSONAS.map((agent) => {
+  const scores = AGENT_PERSONAS.map((agent, index) => {
     let score = 0;
     const keywords = {
       lantern: ["light", "flame", "steady", "safe", "home", "glow", "protect", "lantern"],
@@ -60,7 +60,8 @@ function selectAgent(message) {
     for (const kw of agentKeys) {
       if (lower.includes(kw)) score += 10;
     }
-    score += Math.random() * 3;
+    // Deterministic tie-breaker: stable index-based offset (no Math.random)
+    score += (AGENT_PERSONAS.length - index) * 0.001;
     return { agent, score };
   });
   scores.sort((a, b) => b.score - a.score);

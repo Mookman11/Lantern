@@ -52,8 +52,18 @@ module.exports = async function dreamerRoutes(req, res, url, deps) {
   }
   if (url.pathname === "/api/agents/slots" && req.method === "GET") {
     try {
-      const slotsPath = path.join(repoRoot, ".claude", "agent-slots.json");
-      if (!require("fs").existsSync(slotsPath)) {
+      const fs = require("fs");
+      const claudePath = path.join(repoRoot, ".claude", "agent-slots.json");
+      const manifestPath = path.join(repoRoot, "manifests", "dream-journal-v1-agent-slots.json");
+      let slotsPath = claudePath;
+      if (!fs.existsSync(claudePath)) {
+        if (!fs.existsSync(manifestPath)) {
+          sendJson(res, { error: "agent-slots.json not found" }, 404);
+          return true;
+        }
+        slotsPath = manifestPath;
+      }
+      if (!fs.existsSync(slotsPath)) {
         sendJson(res, { error: "agent-slots.json not found" }, 404);
         return true;
       }
