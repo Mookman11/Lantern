@@ -92,4 +92,5 @@ __pycache__/
 # Data directories that should not be committed
 data/dream_journal/
 data/dollhouse/csf/
+data/dollhouse/agent-checkin-manifest.json
 data/agent-fleet/
