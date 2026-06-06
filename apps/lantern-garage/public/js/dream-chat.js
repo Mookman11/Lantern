@@ -102,7 +102,7 @@
   let serverBase = isStaticHost ? "http://127.0.0.1:4177" : window.location.origin;
 
   // Load version badge from version.json (bump minor in each PR)
-  fetch(`${serverBase}/version.json`, { cache: "no-store" })
+  fetch(`${serverBase}/version.json?t=${Date.now()}`, { cache: "no-store" })
     .then(r => r.ok ? r.json() : null)
     .then(v => {
       if (v?.version) {

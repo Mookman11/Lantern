@@ -95,6 +95,17 @@
     }
   }
 
+  async function fetchCompare(localCommit) {
+    try {
+      const r = await fetch(`https://api.github.com/repos/alex-place/lantern-os/compare/${localCommit}...master`, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return null;
+      const d = await r.json();
+      return { behind: d.behind_by || 0, ahead: d.ahead_by || 0, status: d.status };
+    } catch {
+      return null;
+    }
+  }
+
   async function check() {
     [localCommit, remoteCommit] = await Promise.all([
       fetchLocalVersion(),
@@ -107,6 +118,25 @@
     }
 
     if (localCommit === remoteCommit) {
+      removeBanner();
+      return;
+    }
+
+    const compare = await fetchCompare(localCommit);
+    if (!compare) {
+      // Can't determine relationship — hide banner to avoid false positive
+      removeBanner();
+      return;
+    }
+
+    if (compare.ahead > 0) {
+      // Local is ahead of remote (unpushed commits) — no update needed
+      removeBanner();
+      return;
+    }
+
+    if (compare.behind === 0) {
+      // Up to date (diverged but not behind)
       removeBanner();
       return;
     }
