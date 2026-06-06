@@ -30,7 +30,7 @@
       </select>
       <button class="mcp-toggle" id="mcp-toggle" title="Toggle Keystone MCP mode" onclick="toggleKeystoneMcp()">🔧 MCP</button>
     </div>
-    <button class="settings-btn" id="logdream-btn" title="Log a dream" onclick="openLogDream()" style="margin-left:4px;">✦</button>
+    <button class="settings-btn" id="logdream-btn" title="Log a dream" onclick="openLogDream()" style="margin-left:4px;">❆</button>
     <button class="settings-btn" id="settings-btn" title="Provider settings" onclick="openSettings()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -55,7 +55,7 @@
       <!-- Claude -->
       <div class="provider-card" id="card-claude">
         <div class="provider-top">
-          <div class="provider-icon" style="background:#1a1535">✦</div>
+          <div class="provider-icon" style="background:#1a1535">❆</div>
           <span class="provider-name">Claude <span style="font-weight:400;color:var(--muted);font-size:0.78rem">by Anthropic</span></span>
           <span class="provider-status missing" id="status-claude">not set</span>
         </div>
@@ -149,7 +149,7 @@
 
       <!-- Voice & Speech -->
       <div class="voice-card" id="card-voice">
-        <h3>🎙 Voice &amp; Speech</h3>
+        <h3>🎤 Voice &amp; Speech</h3>
         <div class="voice-row">
           <label>Voice</label>
           <select class="voice-select" id="voice-select" onchange="saveVoiceSettings()">
@@ -180,7 +180,7 @@
       <!-- ElevenLabs TTS -->
       <div class="provider-card" id="card-elevenlabs">
         <div class="provider-top">
-          <div class="provider-icon" style="background:#1a1020">🎙</div>
+          <div class="provider-icon" style="background:#1a1020">🎤</div>
           <span class="provider-name">ElevenLabs <span style="font-weight:400;color:var(--muted);font-size:0.78rem">TTS provider</span></span>
           <span class="provider-status missing" id="status-elevenlabs">not set</span>
         </div>
@@ -318,8 +318,8 @@
         autocomplete="off"
         spellcheck="true"
       ></textarea>
-      <button class="voice-btn" id="voice-btn" title="Hold to speak (or click to toggle)" onclick="toggleVoice()">🎙</button>
-      <button class="voice-btn" id="ctf-btn" title="CTF symbol palette" onclick="toggleCtfPalette()" style="font-size:14px;">✦</button>
+      <button class="voice-btn" id="voice-btn" title="Hold to speak (or click to toggle)" onclick="toggleVoice()">🎤</button>
+      <button class="voice-btn" id="ctf-btn" title="CTF symbol palette" onclick="toggleCtfPalette()" style="font-size:14px;">❆</button>
       <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/>
@@ -328,7 +328,7 @@
       </button>
     </div>
     <div class="ctf-popup hidden" id="ctf-popup"></div>
-    <p class="input-hint" id="input-hint">Enter to send · Shift+Enter for newline · 🎙 voice · ✦ CTF</p>
+    <p class="input-hint" id="input-hint">Enter to send · Shift+Enter for newline · 🎤 voice · ❆ CTF</p>
   </div>
 </div>
 
@@ -348,39 +348,6 @@
 </div>
 
 <script src="js/dream-chat.js"></script>
-    wrap.addEventListener("click", () => {
-      const a = document.createElement("a");
-      a.download = `dream-doors-${Date.now()}.png`;
-      a.href = canvas.toDataURL("image/png");
-      a.click();
-    });
-    row.appendChild(wrap);
-    scrollToBottom();
-  }
-
-</script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
-<p style="text-align:center;opacity:0.5;font-size:0.72rem;margin:12px 0;"><span data-version-badge="Lantern OS v">Lantern OS</span> · private · local</p>
-<!-- Version badge auto-loader -->
-<script>
-(function() {
-  const base = window.location.origin;
-  fetch(base + '/version.json', { cache: 'no-store' })
-    .then(r => r.ok ? r.json() : null)
-    .then(v => {
-      if (!v || !v.version) return;
-      document.querySelectorAll('[data-version-badge]').forEach(el => {
-        const prefix = el.dataset.versionBadge || '';
-        el.textContent = prefix + 'v' + v.version;
-        el.style.cursor = 'pointer';
-        el.title = 'View changelog';
-        el.onclick = function() { window.open('/repo/CHANGELOG.MD', '_blank'); };
-      });
-      const appVer = document.getElementById('app-version');
-      if (appVer) appVer.textContent = 'Lantern OS v' + v.version + ' · private · local';
-    })
-    .catch(() => {});
-})();
-</script>
 </body>
 </html>
