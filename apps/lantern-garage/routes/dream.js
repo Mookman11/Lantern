@@ -314,12 +314,26 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
 
       const proxyAudio = (hostname, path2, headers, postData) => {
         return new Promise((resolve) => {
-          const proxyReq = https.request({ hostname, path: path2, method: "POST", headers }, (proxyRes) => {
-            res.writeHead(proxyRes.statusCode, { "Content-Type": "audio/mpeg" });
-            proxyRes.pipe(res);
-            resolve(true);
+          let resolved = false;
+          const proxyReq = https.request({ hostname, path: path2, method: "POST", headers, timeout: 15000 }, (proxyRes) => {
+            if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+              res.writeHead(200, { "Content-Type": "audio/mpeg" });
+              proxyRes.pipe(res);
+              resolved = true;
+              resolve(true);
+            } else {
+              // Drain the error response so the connection closes cleanly
+              proxyRes.resume();
+              if (!resolved) { resolved = true; resolve(false); }
+            }
           });
-          proxyReq.on("error", () => { resolve(false); });
+          proxyReq.on("timeout", () => {
+            proxyReq.destroy();
+            if (!resolved) { resolved = true; resolve(false); }
+          });
+          proxyReq.on("error", () => {
+            if (!resolved) { resolved = true; resolve(false); }
+          });
           proxyReq.write(postData);
           proxyReq.end();
         });
