@@ -6,6 +6,25 @@ const { appendConversationEntry } = require("./conversation-store");
 
 const maxConversationTextLength = 4000;
 
+// Fallback doors when AI omits the marker or provider fails
+const FALLBACK_DOORS = ["Open the door I just described", "Take me through a different door", "Help me understand what I saw"];
+
+// Parse [DOORS: A | B | C] out of the full reply and return cleaned text + doors array
+function extractDoors(text) {
+  const match = text.match(/\[DOORS:\s*([^\]]+)\]/i);
+  if (!match) return { cleanText: text.trim(), doors: [] };
+  const doors = match[1].split("|").map(d => d.trim()).filter(Boolean).slice(0, 3);
+  const cleanText = text.replace(/\[DOORS:[^\]]+\]/i, "").replace(/\n{3,}/g, "\n\n").trim();
+  return { cleanText, doors };
+}
+
+function doorsOrFallback(text, isKeystoneDebug = false) {
+  if (isKeystoneDebug) return { cleanText: text.trim(), suggestions: [] };
+  const { cleanText, doors } = extractDoors(text);
+  const finalDoors = doors.length === 3 ? doors : [...doors, ...FALLBACK_DOORS].slice(0, 3);
+  return { cleanText, suggestions: finalDoors };
+}
+
 async function handleStreamChat(req, url, res) {
   let message = "";
   let user = "dreamer";
@@ -147,26 +166,6 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
     ? KEYSTONE_DEBUG_PROMPT
     : `${agent.systemPrompt}\n\n${dreamContext}${historyContext}\n\nTone: thoughtful, unhurried, human. Never clinical. Never sycophantic. Use the dreamer's own words back to them.${DOORS_INSTRUCTION}`;
 
-  // Parse [DOORS: A | B | C] out of the full reply and return cleaned text + doors array
-  function extractDoors(text) {
-    const match = text.match(/\[DOORS:\s*([^\]]+)\]/i);
-    if (!match) return { cleanText: text.trim(), doors: [] };
-    const doors = match[1].split("|").map(d => d.trim()).filter(Boolean).slice(0, 3);
-    const cleanText = text.replace(/\[DOORS:[^\]]+\]/i, "").replace(/\n{3,}/g, "\n\n").trim();
-    return { cleanText, doors };
-  }
-
-  // Fallback doors when AI omits the marker or provider fails
-  const FALLBACK_DOORS = ["Open the door I just described", "Take me through a different door", "Help me understand what I saw"];
-
-  function doorsOrFallback(text) {
-    // Keystone debug mode: no doors, no parsing, raw text
-    if (isKeystoneDebug) return { cleanText: text.trim(), suggestions: [] };
-    const { cleanText, doors } = extractDoors(text);
-    const finalDoors = doors.length === 3 ? doors : [...doors, ...FALLBACK_DOORS].slice(0, 3);
-    return { cleanText, suggestions: finalDoors };
-  }
-
   const sendToken = (token) => {
     res.write(`data: ${JSON.stringify({ type: "token", text: token })}\n\n`);
   };
@@ -222,6 +221,9 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
     if (msg.includes("no_provider_configured")) {
       return "No AI providers are set up. Add an API key in Settings to get started.";
     }
+    if (msg.includes("all_providers_failed")) {
+      return "All providers failed. This can happen when keys are invalid, rate-limited, or the network is slow. Check Settings or try again.";
+    }
     return msg;
   }
 
@@ -262,6 +264,13 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
     role: "operator",
     text: message.slice(0, maxConversationTextLength),
   }).catch(() => {});
+
+  // Detect whether any provider keys are configured (so we can distinguish "no keys" from "all failed")
+  const anyProviderConfigured = !!(
+    process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY ||
+    process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY ||
+    process.env.XAI_API_KEY || process.env.OLLAMA_BASE_URL
+  );
 
   let fullReply = "";
 
@@ -333,7 +342,7 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
         req2.write(payload);
         req2.end();
       });
-      const { cleanText: geminiClean, suggestions: geminiDoors } = doorsOrFallback(fullReply);
+      const { cleanText: geminiClean, suggestions: geminiDoors } = doorsOrFallback(fullReply, isKeystoneDebug);
       await appendConversationEntry({
         recordedAt: new Date().toISOString(),
         surface: "dream-chat-stream",
@@ -415,7 +424,7 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
         req2.write(payload);
         req2.end();
       });
-      const { cleanText: anthropicClean, suggestions: anthropicDoors } = doorsOrFallback(fullReply);
+      const { cleanText: anthropicClean, suggestions: anthropicDoors } = doorsOrFallback(fullReply, isKeystoneDebug);
       await appendConversationEntry({
         recordedAt: new Date().toISOString(),
         surface: "dream-chat-stream",
@@ -488,7 +497,7 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
         req2.write(payload);
         req2.end();
       });
-      const { cleanText: openaiClean, suggestions: openaiDoors } = doorsOrFallback(fullReply);
+      const { cleanText: openaiClean, suggestions: openaiDoors } = doorsOrFallback(fullReply, isKeystoneDebug);
       await appendConversationEntry({
         recordedAt: new Date().toISOString(),
         surface: "dream-chat-stream",
@@ -543,7 +552,7 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
         req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("xai_timeout")); });
         req2.write(payload); req2.end();
       });
-      const { cleanText: xaiClean, suggestions: xaiDoors } = doorsOrFallback(fullReply);
+      const { cleanText: xaiClean, suggestions: xaiDoors } = doorsOrFallback(fullReply, isKeystoneDebug);
       await appendConversationEntry({ recordedAt: new Date().toISOString(), surface: "dream-chat-stream", role: "lantern", text: xaiClean.slice(0, maxConversationTextLength) }).catch(() => {});
       sendDone("grok", { agent: agent.name, online: true, cleanText: xaiClean, suggestions: xaiDoors });
       return;
@@ -614,7 +623,7 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
         req2.end();
       });
       if (ollamaOk) {
-        const { cleanText: ollamaClean, suggestions: ollamaDoors } = doorsOrFallback(fullReply);
+        const { cleanText: ollamaClean, suggestions: ollamaDoors } = doorsOrFallback(fullReply, isKeystoneDebug);
         await appendConversationEntry({
           recordedAt: new Date().toISOString(),
           surface: "dream-chat-stream",
@@ -635,7 +644,10 @@ Answer directly. Reference file paths. Check data/pcsf/ for state. Check manifes
   }
 
   // No provider available — stream local persona fallback
-  await streamLocalFallback("no_provider_configured");
+  const fallbackReason = anyProviderConfigured
+    ? "all_providers_failed"
+    : "no_provider_configured";
+  await streamLocalFallback(fallbackReason);
 }
 
-module.exports = { handleStreamChat };
+module.exports = { handleStreamChat, extractDoors, doorsOrFallback };

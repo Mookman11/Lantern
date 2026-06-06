@@ -1,8 +1,11 @@
+const https = require("https");
+
 // Dream Journal core — create, chat, stream, stats, search, export, read, settings
 const PROVIDER_KEYS = [
   "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
   "XAI_API_KEY", "OLLAMA_BASE_URL", "OLLAMA_MODEL", "ANTHROPIC_MODEL", "OPENAI_MODEL", "GEMINI_MODEL",
   "DISCORD_BOT_TOKEN", "LANTERN_DISCORD_GUILD_ID",
+  "ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID",
 ];
 
 module.exports = async function dreamRoutes(req, res, url, deps) {
@@ -60,9 +63,10 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
         emotions: normalizeList(body.emotions, 12), tags: normalizeList(body.tags, 10),
         symbols: normalizeList(body.symbols, 12),
         linked_goals: body.linked_goals || [], priority: body.priority || "normal",
-        reflection_on: body.reflection_on || [], source: "api",
+        reflection_on: body.reflection_on || [], source: String(body.source || "api").slice(0, 40),
         dcf_class: body.dcf_class || null,
         rps_flags: body.rps_flags || [],
+        ctf_glyphs: normalizeList(body.ctf_glyphs, 20),
       };
       const dreamDir = path.join(repoRoot, "data", "dream_journal");
       if (!fs.existsSync(dreamDir)) fs.mkdirSync(dreamDir, { recursive: true });
@@ -70,7 +74,18 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       await appendJsonlQueued(monthFile, entry);
       // MemOS ingest runs via: python -c "from src.convergence_io.memos_bridge import get_cube; get_cube().ingest_all()"
       // or automatically on each TesseractEngine._convergence_rag() call (lazy load).
-      sendJson(res, { id: dreamId, saved: true, entry, csf: { compressed: false } });
+      // Background CSF compression (non-blocking)
+      let csfStats = { compressed: false };
+      try {
+        const { spawn } = require("child_process");
+        const py = process.platform === "win32" ? "python" : "python3";
+        const script = `from src.csf.dream_compressor import compress_dream_file; compress_dream_file(r'${monthFile}')`;
+        const proc = spawn(py, ["-c", script], { cwd: repoRoot, env: { ...process.env, PYTHONPATH: path.join(repoRoot, "src") } });
+        proc.on("close", (code) => {
+          // Compression complete; .csf file written alongside .jsonl
+        });
+      } catch { /* compression is non-critical */ }
+      sendJson(res, { id: dreamId, saved: true, entry, csf: csfStats });
     } catch (error) { sendJson(res, { error: error.message }, 400); }
     return true;
   }
@@ -194,12 +209,15 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
   if (url.pathname === "/api/dream/stats" && req.method === "GET") {
     try {
       const entries = loadDreamEntries(fs, path, repoRoot);
-      const stats = { total_entries: entries.length, entries_by_kind: {}, top_emotions: {}, top_tags: {}, top_symbols: {}, total_lucidity: 0, avg_lucidity: 0 };
+      const stats = { total_entries: entries.length, entries_by_kind: {}, top_emotions: {}, top_tags: {}, top_symbols: {}, top_ctf: {}, entries_with_ctf: 0, total_lucidity: 0, avg_lucidity: 0 };
       for (const entry of entries) {
         stats.entries_by_kind[entry.kind || "dream"] = (stats.entries_by_kind[entry.kind || "dream"] || 0) + 1;
         for (const e of (entry.emotions || [])) stats.top_emotions[e] = (stats.top_emotions[e] || 0) + 1;
         for (const t of (entry.tags || [])) stats.top_tags[t] = (stats.top_tags[t] || 0) + 1;
         for (const s of (entry.symbols || [])) stats.top_symbols[s] = (stats.top_symbols[s] || 0) + 1;
+        const ctf = entry.ctf_glyphs || [];
+        if (ctf.length) stats.entries_with_ctf++;
+        for (const g of ctf) stats.top_ctf[g] = (stats.top_ctf[g] || 0) + 1;
         stats.total_lucidity += entry.lucidity || 0;
       }
       if (entries.length > 0) stats.avg_lucidity = (stats.total_lucidity / entries.length).toFixed(2);
@@ -212,11 +230,13 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
     try {
       const query = url.searchParams.get("text") || "";
       const tags = (url.searchParams.get("tags") || "").split(",").filter(t => t);
+      const ctf = (url.searchParams.get("ctf") || "").split(",").filter(t => t);
       const results = loadDreamEntries(fs, path, repoRoot).filter(e =>
         (query === "" || (e.text || "").toLowerCase().includes(query.toLowerCase())) &&
-        (tags.length === 0 || tags.some(t => (e.tags || []).includes(t)))
+        (tags.length === 0 || tags.some(t => (e.tags || []).includes(t))) &&
+        (ctf.length === 0 || ctf.some(t => (e.ctf_glyphs || []).includes(t)))
       );
-      sendJson(res, { query, tags, count: results.length, results: results.slice(0, 50) });
+      sendJson(res, { query, tags, ctf, count: results.length, results: results.slice(0, 50) });
     } catch (error) { sendJson(res, { error: error.message }, 400); }
     return true;
   }
@@ -226,12 +246,12 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       const format = url.searchParams.get("format") || "jsonl";
       const entries = loadDreamEntries(fs, path, repoRoot, true);
       if (format === "csv") {
-        const cols = ["id", "timestamp", "kind", "text", "lucidity", "emotions", "tags", "symbols"];
+        const cols = ["id", "timestamp", "kind", "text", "lucidity", "emotions", "tags", "symbols", "ctf_glyphs"];
         const escape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const rows = [cols.join(","), ...entries.map(e => [
           escape(e.id), escape(e.timestamp), escape(e.kind), escape(e.text),
           escape(e.lucidity), escape((e.emotions || []).join(";")),
-          escape((e.tags || []).join(";")), escape((e.symbols || []).join(";"))
+          escape((e.tags || []).join(";")), escape((e.symbols || []).join(";")), escape((e.ctf_glyphs || []).join(";"))
         ].join(","))];
         res.writeHead(200, { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="dream-journal-${new Date().toISOString().substring(0,10)}.csv"` });
         res.end(rows.join("\n"));
@@ -280,6 +300,81 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
         .map(([k,v]) => ({ pair: k, count: v }));
       sendJson(res, { weeks: byWeek, top_pairs: topPairs, total_entries: entries.length });
     } catch (error) { sendJson(res, { error: error.message }, 400); }
+    return true;
+  }
+
+  // ── TTS proxy ─────────────────────────────────────────────────────────
+  if (url.pathname === "/api/dream/tts" && req.method === "POST") {
+    try {
+      const raw = await collectRequestBody(req);
+      const body = JSON.parse(raw);
+      const text = String(body.text || "").slice(0, 4000).trim();
+      if (!text) { sendJson(res, { error: "text_required" }, 400); return true; }
+      const voiceId = String(body.voice_id || process.env.ELEVENLABS_VOICE_ID || "Rachel").slice(0, 60);
+
+      const proxyAudio = (hostname, path2, headers, postData) => {
+        return new Promise((resolve) => {
+          let resolved = false;
+          const proxyReq = https.request({ hostname, path: path2, method: "POST", headers, timeout: 15000 }, (proxyRes) => {
+            if (proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+              res.writeHead(200, { "Content-Type": "audio/mpeg" });
+              proxyRes.pipe(res);
+              resolved = true;
+              resolve(true);
+            } else {
+              // Drain the error response so the connection closes cleanly
+              proxyRes.resume();
+              if (!resolved) { resolved = true; resolve(false); }
+            }
+          });
+          proxyReq.on("timeout", () => {
+            proxyReq.destroy();
+            if (!resolved) { resolved = true; resolve(false); }
+          });
+          proxyReq.on("error", () => {
+            if (!resolved) { resolved = true; resolve(false); }
+          });
+          proxyReq.write(postData);
+          proxyReq.end();
+        });
+      };
+
+      // Try ElevenLabs first
+      if (process.env.ELEVENLABS_API_KEY) {
+        const postData = JSON.stringify({ text, model_id: "eleven_turbo_v2_5" });
+        const ok = await proxyAudio(
+          "api.elevenlabs.io",
+          `/v1/text-to-speech/${encodeURIComponent(voiceId)}`,
+          {
+            "xi-api-key": process.env.ELEVENLABS_API_KEY,
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(postData),
+            "Accept": "audio/mpeg",
+          },
+          postData
+        );
+        if (ok) return true;
+      }
+
+      // Fall back to OpenAI TTS
+      if (process.env.OPENAI_API_KEY) {
+        const openaiVoice = String(body.voice_id || "nova").slice(0, 20);
+        const postData = JSON.stringify({ model: "tts-1", input: text, voice: openaiVoice });
+        const ok = await proxyAudio(
+          "api.openai.com",
+          "/v1/audio/speech",
+          {
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(postData),
+          },
+          postData
+        );
+        if (ok) return true;
+      }
+
+      sendJson(res, { fallback: "browser" });
+    } catch (err) { sendJson(res, { error: err.message }, 500); }
     return true;
   }
 
