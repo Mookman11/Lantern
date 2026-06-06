@@ -1,0 +1,11 @@
+
+Dream Chat refactor tests
+=========================
+
+  ✓ CSS file is served
+  ✓ JS file is served
+  ✓ HTML shell loads external files
+  ✓ Convergence loop route responds
+  ✓ Provider settings still works
+
+5 passed, 0 failed
