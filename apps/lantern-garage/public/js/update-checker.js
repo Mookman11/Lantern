@@ -23,10 +23,39 @@
     `;
     document.body.prepend(banner);
 
-    document.getElementById("lantern-update-action").addEventListener("click", () => {
+    document.getElementById("lantern-update-action").addEventListener("click", async () => {
+      const btn = document.getElementById("lantern-update-action");
+      btn.disabled = true;
+      btn.textContent = "Updating...";
+
       if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-        // Local dev — show instructions
-        alert("Update instructions:\n\n1. git pull origin master\n2. npm install --prefix apps/lantern-garage\n3. Restart the server (Ctrl+C then node apps/lantern-garage/server.js)\n\nThen reload this page.");
+        // Local dev — auto-update via POST to action endpoint
+        try {
+          const r = await fetch("/api/actions/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          const d = await r.json();
+          if (d.ok && d.restart_scheduled) {
+            banner.querySelector(".lantern-update-text").innerHTML =
+              `<span style="color:#4caf82">Updated to <code>${d.version.tag}</code>. Restarting server...</span>`;
+            btn.style.display = "none";
+            document.getElementById("lantern-update-dismiss").style.display = "none";
+            // Server will restart; wait 4s then reload
+            setTimeout(() => window.location.reload(true), 4000);
+          } else {
+            const failed = d.steps.filter(s => !s.ok).map(s => s.step).join(", ");
+            banner.querySelector(".lantern-update-text").innerHTML =
+              `<span style="color:#ff6b6b">Update failed: ${failed}</span>`;
+            btn.textContent = "Retry";
+            btn.disabled = false;
+          }
+        } catch (e) {
+          banner.querySelector(".lantern-update-text").innerHTML =
+            `<span style="color:#ff6b6b">Network error: ${e.message}</span>`;
+          btn.textContent = "Retry";
+          btn.disabled = false;
+        }
       } else {
         // GitHub Pages — hard refresh
         window.location.reload(true);
