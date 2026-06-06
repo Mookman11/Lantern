@@ -462,8 +462,12 @@ class ValidationRing:
                         if "=" in line or ":" in line:
                             return False
             return True
+        except FileNotFoundError:
+            return False  # git not installed — cannot verify, fail closed
+        except subprocess.TimeoutExpired:
+            return False  # scan timed out — fail closed
         except Exception:
-            return True  # fail open if git not available
+            return False  # unexpected error — fail closed to be safe
 
     def _check_orphaned_slots(self, path: Path) -> bool:
         try:
@@ -1218,7 +1222,7 @@ if __name__ == "__main__":
 
     p_ring = sub.add_parser("validate-ring")
     p_ring.add_argument("--max-jobs", type=int, default=10)
-    p_ring.add_argument("--max-seconds", type=float, default=30.0)
+    p_ring.add_argument("--max-seconds", type=float, default=15.0)
 
     args = parser.parse_args()
 
