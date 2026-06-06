@@ -330,6 +330,11 @@ async function refresh() {
 
 $('refreshBtn').addEventListener('click', refresh);
 refresh().catch(e => log('Initial refresh failed: ' + e.message));
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+  refresh().catch(e => log('Auto-refresh failed: ' + e.message));
+}, 30000);
 </script>
 </body>
 </html>
