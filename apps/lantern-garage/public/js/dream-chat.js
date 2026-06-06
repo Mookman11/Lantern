@@ -177,15 +177,23 @@
       Promise.all([runLoop, fetchVersion])
         .then(async ([loopR, versionD]) => {
           const d = await loopR.json();
-          const out = d.stdout ? d.stdout.slice(0, 700) : "";
-          const err = d.stderr ? d.stderr.slice(0, 300) : "";
+          const rawOut = d.stdout || "";
+          const rawErr = d.stderr || "";
           const tag = versionD?.version?.tag || "unknown";
           const commit = versionD?.version?.commit ? versionD.version.commit.slice(0, 7) : "?";
+
+          // Extract JSON from stdout (convergence loop prints it at the end)
           let promo = "";
           try {
-            const loopJson = JSON.parse(d.stdout || "{}");
-            promo = loopJson.promotion_ready ? "✓ promotion_ready" : "✗ not ready";
+            const jsonMatch = rawOut.match(/\{[\s\S]*"promotion_ready"[\s\S]*\}/);
+            if (jsonMatch) {
+              const loopJson = JSON.parse(jsonMatch[0]);
+              promo = loopJson.promotion_ready ? "✓ promotion_ready" : "✗ not ready";
+            }
           } catch {}
+
+          const out = rawOut.slice(0, 700);
+          const err = rawErr.slice(0, 300);
 
           sysRow.querySelector(".bubble").innerHTML =
             `<b>Convergence loop</b> ${loopR.ok ? "✓" : "✗"} <code>${tag}</code> <code>${commit}</code> ${promo}<pre style="margin-top:6px;white-space:pre-wrap;font-size:12px;opacity:0.85;">${escapeHtml(out)}${err ? "\n---stderr---\n" + escapeHtml(err) : ""}</pre>`;
