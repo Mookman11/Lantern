@@ -182,6 +182,7 @@
       toggleDebug();
       return;
     }
+<<<<<<< HEAD
     // !autoupdate pulls latest code, installs deps, and restarts server
     if (text === "!autoupdate") {
       inputEl.value = "";
@@ -190,6 +191,9 @@
       return;
     }
     // !convergence runs the Lantern convergence loop + version check + auto-update
+=======
+    // !convergence runs the Lantern convergence loop + version check
+>>>>>>> a53a7ae95f03d3eb13d9723854c1b771978b10e4
     if (text === "!convergence") {
       inputEl.value = "";
       inputEl.style.height = "auto";

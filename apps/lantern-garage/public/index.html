@@ -434,7 +434,18 @@
     $('stat-readiness').textContent = readinessText;
 
     // Wallet (honest — show if data exists)
+<<<<<<< HEAD
     $('benchmark-subtitle').textContent = 'Real-time feature status from this instance.';
+=======
+    const wallet = status?.wallet || {};
+    const cleared = wallet.clearedCashUsd ?? 0;
+    const pending = wallet.pendingInvoiceUsd ?? 0;
+    if (cleared > 0 || pending > 0) {
+      $('benchmark-subtitle').textContent = 'Cleared $' + cleared + ' · Pending $' + pending + ' · ' + (arc.humanTrialDemoReadiness ? arc.humanTrialDemoReadiness + '% demo ready' : 'demo readiness not measured');
+    } else {
+      $('benchmark-subtitle').textContent = 'Real-time feature status from this instance. No financial claims.';
+    }
+>>>>>>> a53a7ae95f03d3eb13d9723854c1b771978b10e4
 
     // Server stat
     $('stat-server').textContent = serverOnline ? 'Node.js running on port ' + (health?.port || '4177') : 'Server not responding';
