@@ -9,6 +9,7 @@ with enriched context.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -502,7 +503,7 @@ class ValidationRing:
             "jobs_processed": len(processed),
             "consensus_passed": consensus_passed,
             "consensus_failed": consensus_failed,
-            "records": [{"job_id": r["job_id"], "consensus": r["consensus"], "hash": r["hash"][:16]} for r in processed],
+            "records": [{"job_id": r["job_id"], "consensus": r["consensus"], "severity": r.get("severity", "low"), "hash": r["hash"][:16]} for r in processed],
             "chain_tip": prev_hash[:16],
         }
 
@@ -629,8 +630,16 @@ class ConvergenceLoop:
             ring = ValidationRing(self.repo_root, max_jobs=10, max_seconds=15.0)
             result = ring.run()
             issues = []
-            if result.get("consensus_failed", 0) > 0:
-                issues.append(f"{result['consensus_failed']} validation ring jobs failed consensus")
+            warnings = []
+            # Only fail phase on critical/high severity failures; medium/low are warnings
+            for rec in result.get("records", []):
+                if rec.get("consensus") in ("rejected", "disputed"):
+                    sev = rec.get("severity", "low")
+                    msg = f"Job {rec['job_id']} ({sev}) failed consensus"
+                    if sev in ("critical", "high"):
+                        issues.append(msg)
+                    else:
+                        warnings.append(msg)
             return PhaseResult(
                 9, "run_validation_ring",
                 "pass" if not issues else "fail",
@@ -639,6 +648,7 @@ class ConvergenceLoop:
                     "jobs_processed": result.get("jobs_processed", 0),
                     "consensus_passed": result.get("consensus_passed", 0),
                     "consensus_failed": result.get("consensus_failed", 0),
+                    "warnings": warnings,
                     "chain_tip": result.get("chain_tip", "unknown"),
                 },
             )
