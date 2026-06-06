@@ -589,6 +589,7 @@ class ConvergenceLoop:
 
     def run(self) -> Dict[str, Any]:
         self.results = []
+        audit: List[PhaseResult] = []
         overall_start = time.time()
 
         safety = self.nap.check()
@@ -606,7 +607,7 @@ class ConvergenceLoop:
         external_io_phases = {"record_evidence", "promote_or_hold"}
 
         for tick in range(self.internal_multiplier):
-            tick_start = time.time()
+            tick_results: List[PhaseResult] = []
             for num, key, desc in self.PHASES:
                 # Skip external-facing phases on internal ticks (only run on final tick)
                 if tick < self.internal_multiplier - 1 and key in external_io_phases:
@@ -621,7 +622,9 @@ class ConvergenceLoop:
                         issues_found=[str(exc)],
                         elapsed_ms=round((time.time() - start) * 1000, 2),
                     )
-                self.results.append(result)
+                tick_results.append(result)
+            audit.extend(tick_results)
+            self.results = tick_results  # phases that inspect self.results see current tick only
             # Light external dilation between internal ticks
             if self.external_dilation > 0 and tick < self.internal_multiplier - 1:
                 time.sleep(0.001 * self.external_dilation)
@@ -634,7 +637,7 @@ class ConvergenceLoop:
                         "status": "aborted",
                         "reason": "NAP safety threshold exceeded mid-run",
                         "safety": safety,
-                        "phases": [self._phase_to_dict(r) for r in self.results],
+                        "phases": [self._phase_to_dict(r) for r in audit],
                         "artifacts": self.artifacts,
                         "promotion_ready": False,
                     }
@@ -645,7 +648,7 @@ class ConvergenceLoop:
         return {
             "timestamp": _now(),
             "total_ms": total_ms,
-            "phases": [self._phase_to_dict(r) for r in self.results],
+            "phases": [self._phase_to_dict(r) for r in audit],
             "artifacts": self.artifacts,
             "promotion_ready": all(r.status == "pass" for r in self.results),
             "safety": safety,
