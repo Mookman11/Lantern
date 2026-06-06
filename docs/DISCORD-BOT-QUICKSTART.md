@@ -18,6 +18,10 @@ The Lantern OS Discord bot provides:
 
 Open the Dream Chat web UI (`http://127.0.0.1:4177/dream-chat.html`), click the **settings (gear) icon**, and scroll to the **Discord Bot** section. Enter your bot token and guild ID there. The settings are saved to `.env.local` in the repo root and are automatically picked up by the bot on startup.
 
+## Configuration (Preferred Method)
+
+Open the Dream Chat web UI (`http://127.0.0.1:4177/dream-chat.html`), click the **settings (gear) icon**, and scroll to the **Discord Bot** section. Enter your bot token and guild ID there. The settings are saved to `.env.local` in the repo root and are automatically picked up by the bot on startup.
+
 ## Installation
 
 ### 1. Environment Setup
