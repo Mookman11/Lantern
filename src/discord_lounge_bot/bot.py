@@ -24,6 +24,18 @@ except Exception as exc:
     print(f"[FATAL] Missing dependency 'discord.py': {exc}")
     sys.exit(1)
 
+# -- Load .env.local fallback (shared with web UI settings) --
+_env_local = Path(__file__).resolve().parents[2] / ".env.local"
+if _env_local.exists():
+    for _line in _env_local.read_text("utf-8").splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _k, _v = _line.split("=", 1)
+        _k = _k.strip()
+        if _k and _k not in os.environ:
+            os.environ[_k] = _v.strip()
+
 # ?????? Configuration ??????
 TOKEN = os.getenv("DISCORD_BOT_TOKEN", "").strip()
 GUILD_ID = os.getenv("LANTERN_DISCORD_GUILD_ID", "").strip()

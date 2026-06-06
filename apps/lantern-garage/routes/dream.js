@@ -2,6 +2,7 @@
 const PROVIDER_KEYS = [
   "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
   "XAI_API_KEY", "OLLAMA_BASE_URL", "OLLAMA_MODEL", "ANTHROPIC_MODEL", "OPENAI_MODEL", "GEMINI_MODEL",
+  "DISCORD_BOT_TOKEN", "LANTERN_DISCORD_GUILD_ID",
 ];
 
 module.exports = async function dreamRoutes(req, res, url, deps) {

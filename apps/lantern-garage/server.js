@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 
 // Load .env.local then .env from repo root (two levels up from apps/lantern-garage/)
 const candidateEnvFiles = [
@@ -116,6 +117,46 @@ server.on("error", (error) => {
   }
   throw error;
 });
+
+// ── Discord Bot (optional child process) ──
+let discordBot = null;
+const discordToken = process.env.DISCORD_BOT_TOKEN;
+const discordGuildId = process.env.LANTERN_DISCORD_GUILD_ID;
+if (discordToken && discordGuildId) {
+  const botScript = path.join(repoRoot, "src", "discord_lounge_bot", "bot_v2.py");
+  if (fs.existsSync(botScript)) {
+    const pythonExe = process.platform === "win32" ? "python" : "python3";
+    discordBot = spawn(pythonExe, [botScript], {
+      stdio: "inherit",
+      cwd: repoRoot,
+      env: { ...process.env, DISCORD_BOT_TOKEN: discordToken, LANTERN_DISCORD_GUILD_ID: discordGuildId },
+    });
+    discordBot.on("error", (err) => {
+      console.error(`[Discord Bot] Failed to start: ${err.message}`);
+    });
+    discordBot.on("exit", (code) => {
+      console.log(`[Discord Bot] exited with code ${code}`);
+    });
+    console.log(`[Discord Bot] Spawning ${botScript}`);
+  } else {
+    console.warn(`[Discord Bot] Script not found: ${botScript}`);
+  }
+} else {
+  console.log("[Discord Bot] Skipped (set DISCORD_BOT_TOKEN + LANTERN_DISCORD_GUILD_ID in .env.local to enable)");
+}
+
+// Graceful shutdown
+function shutdown(signal) {
+  console.log(`\n${signal} received. Shutting down...`);
+  if (discordBot && !discordBot.killed) {
+    discordBot.kill("SIGTERM");
+  }
+  server.close(() => {
+    process.exit(0);
+  });
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 server.listen(port, host, () => {
   console.log(`Lantern Garage app listening on ${host}:${port}`);
