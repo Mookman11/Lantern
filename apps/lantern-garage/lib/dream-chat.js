@@ -60,12 +60,16 @@ function selectAgent(message) {
     for (const kw of agentKeys) {
       if (lower.includes(kw)) score += 10;
     }
-    // Deterministic tie-breaker: stable index-based offset (no Math.random)
-    score += (AGENT_PERSONAS.length - index) * 0.001;
-    return { agent, score };
+    return { agent, score, index };
   });
-  scores.sort((a, b) => b.score - a.score);
+  scores.sort((a, b) => b.score - a.score || a.index - b.index);
   return scores[0].agent;
+}
+
+function parseBangCommand(input) {
+  const m = String(input || "").trim().match(/^!(\S+)(?:\s+(.*))?$/);
+  if (!m) return null;
+  return { name: m[1].toLowerCase(), args: (m[2] || "").trim() };
 }
 
 // Door-series canon (from caad/README.md) — keeps the persona grounded offline.
@@ -419,6 +423,7 @@ module.exports = {
   AGENT_PERSONAS,
   DREAM_DOORS,
   selectAgent,
+  parseBangCommand,
   dreamChatReply,
   generateLocalReply,
 };
