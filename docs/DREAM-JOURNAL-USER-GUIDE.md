@@ -1,7 +1,7 @@
 # Dream Journal — Complete User Guide
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-06-02  
+**Version:** 1.0.2  
+**Last Updated:** 2026-06-06  
 **Status:** Production Ready  
 **Your dreams. Your space. Always private.**
 
@@ -533,7 +533,7 @@ Your dreams are worth paying attention to. You're in the right place.
 **Made with intention by Alex Place**  
 *Part of Lantern OS: a personal operating system for memory, reflection, and becoming.*
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-06-02  
+**Version:** 1.0.2  
+**Last Updated:** 2026-06-06  
 **Status:** Production Ready  
 **License:** Proprietary (Lantern OS)
