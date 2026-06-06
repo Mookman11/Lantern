@@ -50,4 +50,31 @@ module.exports = async function dreamerRoutes(req, res, url, deps) {
     });
     return true;
   }
+  if (url.pathname === "/api/agents/slots" && req.method === "GET") {
+    try {
+      const slotsPath = path.join(repoRoot, ".claude", "agent-slots.json");
+      if (!require("fs").existsSync(slotsPath)) {
+        sendJson(res, { error: "agent-slots.json not found" }, 404);
+        return true;
+      }
+      const raw = require("fs").readFileSync(slotsPath, "utf8");
+      const data = JSON.parse(raw);
+      sendJson(res, {
+        slots: data.slots.map((s) => ({
+          id: s.id,
+          agent: s.agent,
+          provider: s.provider,
+          model: s.model,
+          status: s.status,
+          responsibilities: s.responsibilities,
+          fallback: s.quotaTracking?.fallbackAgent || null,
+        })),
+        routing: data.routing?.dailyBootOrder || [],
+        weights: data.routing?.weights || {},
+      });
+    } catch (error) {
+      sendJson(res, { error: error.message }, 500);
+    }
+    return true;
+  }
 };
