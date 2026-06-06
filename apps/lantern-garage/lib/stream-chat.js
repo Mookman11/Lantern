@@ -608,7 +608,7 @@ async function handleStreamChat(req, url, res) {
           upstream.on("error", reject);
         });
         req2.on("error", reject);
-        req2.setTimeout(5000, () => { req2.destroy(); reject(new Error("ollama_connect_timeout")); });
+        req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("ollama_connect_timeout")); });
         req2.write(payload);
         req2.end();
       });
