@@ -268,6 +268,55 @@ class MetricsCollector:
         return s[min(idx, len(s) - 1)]
 
 
+class NapSafety:
+    """Non-blocking Acceleration Protection — light CPU temp + memory guard."""
+
+    def __init__(self, max_cpu_temp: float = 85.0, max_mem_percent: float = 90.0):
+        self.max_cpu_temp = max_cpu_temp
+        self.max_mem_percent = max_mem_percent
+        self._psutil: Any = None
+        try:
+            import psutil
+            self._psutil = psutil
+        except Exception:
+            pass
+
+    def check(self) -> Dict[str, Any]:
+        result: Dict[str, Any] = {
+            "cpu_temp_c": None,
+            "mem_percent": None,
+            "throttle": False,
+            "abort": False,
+        }
+        if self._psutil is not None:
+            try:
+                mem = self._psutil.virtual_memory()
+                result["mem_percent"] = mem.percent
+                if mem.percent > self.max_mem_percent:
+                    result["throttle"] = True
+                if mem.percent > 98.0:
+                    result["abort"] = True
+            except Exception:
+                pass
+            try:
+                temps = self._psutil.sensors_temperatures()
+                if temps:
+                    for entries in temps.values():
+                        for entry in entries:
+                            if entry.current:
+                                result["cpu_temp_c"] = entry.current
+                                break
+                        if result["cpu_temp_c"] is not None:
+                            break
+                    if result["cpu_temp_c"] and result["cpu_temp_c"] > self.max_cpu_temp:
+                        result["throttle"] = True
+                    if result["cpu_temp_c"] and result["cpu_temp_c"] > 100.0:
+                        result["abort"] = True
+            except Exception:
+                pass
+        return result
+
+
 class PromotionState(Enum):
     CANDIDATE = "candidate"
     VALIDATED = "validated"
@@ -525,26 +574,73 @@ class ConvergenceLoop:
         (13, "promote_or_hold", "Promote, hold, or reject artifacts"),
     ]
 
-    def __init__(self, repo_root: Optional[Path] = None):
+    def __init__(
+        self,
+        repo_root: Optional[Path] = None,
+        internal_multiplier: int = 5,
+        external_dilation: float = 1.0,
+    ):
         self.repo_root = repo_root or REPO_ROOT
+        self.internal_multiplier = max(1, internal_multiplier)
+        self.external_dilation = max(0.0, external_dilation)
+        self.nap = NapSafety()
         self.results: List[PhaseResult] = []
         self.artifacts: Dict[str, Any] = {}
 
     def run(self) -> Dict[str, Any]:
         self.results = []
         overall_start = time.time()
-        for num, key, desc in self.PHASES:
-            start = time.time()
-            method = getattr(self, f"_phase_{key}")
-            try:
-                result = method()
-            except Exception as exc:
-                result = PhaseResult(
-                    phase=num, name=key, status="fail",
-                    issues_found=[str(exc)],
-                    elapsed_ms=round((time.time() - start) * 1000, 2),
-                )
-            self.results.append(result)
+
+        safety = self.nap.check()
+        if safety.get("abort"):
+            return {
+                "timestamp": _now(),
+                "status": "aborted",
+                "reason": "NAP safety threshold exceeded",
+                "safety": safety,
+                "phases": [],
+                "artifacts": self.artifacts,
+                "promotion_ready": False,
+            }
+
+        external_io_phases = {"record_evidence", "promote_or_hold"}
+
+        for tick in range(self.internal_multiplier):
+            tick_start = time.time()
+            for num, key, desc in self.PHASES:
+                # Skip external-facing phases on internal ticks (only run on final tick)
+                if tick < self.internal_multiplier - 1 and key in external_io_phases:
+                    continue
+                start = time.time()
+                method = getattr(self, f"_phase_{key}")
+                try:
+                    result = method()
+                except Exception as exc:
+                    result = PhaseResult(
+                        phase=num, name=key, status="fail",
+                        issues_found=[str(exc)],
+                        elapsed_ms=round((time.time() - start) * 1000, 2),
+                    )
+                self.results.append(result)
+            # Light external dilation between internal ticks
+            if self.external_dilation > 0 and tick < self.internal_multiplier - 1:
+                time.sleep(0.001 * self.external_dilation)
+            # Re-check NAP safety mid-run; abort if things got hot
+            if tick % 2 == 0:
+                safety = self.nap.check()
+                if safety.get("abort"):
+                    return {
+                        "timestamp": _now(),
+                        "status": "aborted",
+                        "reason": "NAP safety threshold exceeded mid-run",
+                        "safety": safety,
+                        "phases": [self._phase_to_dict(r) for r in self.results],
+                        "artifacts": self.artifacts,
+                        "promotion_ready": False,
+                    }
+                if safety.get("throttle"):
+                    time.sleep(0.01 * self.external_dilation)
+
         total_ms = round((time.time() - overall_start) * 1000, 2)
         return {
             "timestamp": _now(),
@@ -552,6 +648,8 @@ class ConvergenceLoop:
             "phases": [self._phase_to_dict(r) for r in self.results],
             "artifacts": self.artifacts,
             "promotion_ready": all(r.status == "pass" for r in self.results),
+            "safety": safety,
+            "internal_ticks": self.internal_multiplier,
         }
 
     def _phase_to_dict(self, r: PhaseResult) -> Dict[str, Any]:
@@ -1109,6 +1207,8 @@ if __name__ == "__main__":
     p_inspect = sub.add_parser("inspect")
 
     p_loop = sub.add_parser("loop")
+    p_loop.add_argument("--internal-multiplier", type=int, default=5)
+    p_loop.add_argument("--external-dilation", type=float, default=1.0)
 
     p_health = sub.add_parser("health")
     p_health.add_argument("--url", default="http://127.0.0.1:4177/api/status")
@@ -1127,7 +1227,10 @@ if __name__ == "__main__":
         engine = TesseractEngine()
         print(json.dumps(engine.inspect(), indent=2))
     elif args.command == "loop":
-        loop = ConvergenceLoop()
+        loop = ConvergenceLoop(
+            internal_multiplier=args.internal_multiplier,
+            external_dilation=args.external_dilation,
+        )
         print(json.dumps(loop.run(), indent=2))
     elif args.command == "health":
         engine = TesseractEngine()
