@@ -10,18 +10,11 @@
   let keystoneMcpEnabled = false;
   let originalAgents = [];
 
-  // Telemetry shim (logs to console; replace with real telemetry if needed)
-  const TELEMETRY = {
-    log(scope, msg) { console.log(`[${scope}]`, msg); },
-    warn(scope, msg) { console.warn(`[${scope}]`, msg); },
-    error(scope, msg, extra) { console.error(`[${scope}]`, msg, extra || ""); }
-  };
-
   let isStreaming = false;
   // Conversation history for multi-turn context — [{role:"user"|"assistant", text:"..."}]
   const conversationHistory = [];
 
-  // ── Analytics / Debug collector ─────────────────────────────────────────────────────
+  // ── Analytics / Debug collector ───────────────────────────────────────
   const analytics = {
     sessionStart: Date.now(),
     messagesSent: 0,
@@ -109,7 +102,7 @@
   let serverBase = isStaticHost ? "http://127.0.0.1:4177" : window.location.origin;
 
   // Load version badge from version.json (bump minor in each PR)
-  fetch(`${serverBase}/version.json?t=${Date.now()}`, { cache: "no-store" })
+  fetch(`${serverBase}/version.json`, { cache: "no-store" })
     .then(r => r.ok ? r.json() : null)
     .then(v => {
       if (v?.version) {
@@ -128,12 +121,10 @@
 
   let agents = [];
 
-  // ── Load agents ────────────────────────────────────────────────────────
+  // ── Load agents ───────────────────────────────────────────────────────
   async function loadAgents() {
     try {
-      TELEMETRY.log("agents", "Fetching /api/agents");
       const r = await fetch(`${serverBase}/api/agents`, { signal: AbortSignal.timeout(3000) });
-      TELEMETRY.log("agents", `/api/agents response`, { ok: r.ok, status: r.status });
       if (r.ok) {
         const data = await r.json();
         agents = data.agents || [];
@@ -143,18 +134,15 @@
         if (keystoneMcpEnabled) lockAgentToKeystone();
         statusDot.className = "dot online";
         statusLabel.textContent = "online";
-        TELEMETRY.log("agents", `Loaded ${agents.length} agents`);
         return;
       }
-      TELEMETRY.warn("agents", `Non-OK response loading agents: ${r.status}`);
-    } catch (err) {
-      TELEMETRY.error("agents", `Failed to load agents: ${err.message}`, { serverBase });
-    }
+    } catch {}
     statusDot.className = "dot";
     statusLabel.textContent = "offline";
   }
   loadAgents();
 
+  // Auto-resize is handled inside CTF input listener below
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -162,108 +150,32 @@
     }
   });
 
-  // ── Autoupdate helper ───────────────────────────────────────────────────
-  function triggerAutoupdate(label) {
-    const row = document.createElement("div");
-    row.className = "msg-row agent";
-    row.innerHTML = `<div class="msg-label">System</div><div class="bubble"><b>${label}</b> — checking for updates…</div>`;
-    messagesEl.appendChild(row);
-    scrollToBottom();
-    fetch(`${serverBase}/api/actions/update`, { method: "POST" })
-      .then(r => r.json())
-      .then(d => {
-        const steps = d.steps?.map(s => `${s.ok ? "✓" : "✗"} ${s.step}`).join(" · ") || "";
-        row.querySelector(".bubble").innerHTML =
-          `<b>${label}</b> ${d.ok ? "✓" : "✗"} <code>${d.version?.tag || "?"}</code><br><small style="opacity:0.85">${steps}</small>`;
-        scrollToBottom();
-      })
-      .catch(e => {
-        row.querySelector(".bubble").textContent = `${label} failed: ${e.message}`;
-        scrollToBottom();
-      });
-  }
-
-  // ── Send ────────────────────────────────────────────────────────────────
+  // ── Send ──────────────────────────────────────────────────────────────
   function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || isStreaming) return;
     // !debug toggles the analytics panel without sending a message
     if (text === "!debug") {
       inputEl.value = "";
+      inputEl.style.height = "auto";
       toggleDebug();
       return;
     }
-    // !autoupdate pulls latest code, installs deps, and restarts server
-    if (text === "!autoupdate") {
-      inputEl.value = "";
-      inputEl.style.height = "auto";
-      const sysRow = document.createElement("div");
-      sysRow.className = "msg-row agent";
-      sysRow.innerHTML = `<div class="msg-label">System</div><div class="bubble">Auto-update: pulling latest code…</div>`;
-      messagesEl.appendChild(sysRow);
-      scrollToBottom();
-      fetch(`${serverBase}/api/actions/update`, { method: "POST" })
-        .then(async (r) => {
-          const d = await r.json();
-          const steps = (d.steps || []).map(s => `${s.ok ? "✓" : "✗"} ${s.step}`).join("\n");
-          sysRow.querySelector(".bubble").innerHTML =
-            `<b>Auto-update</b> ${d.ok ? "✓" : "✗"}<br><pre style="margin-top:6px;white-space:pre-wrap;font-size:12px;opacity:0.85;">${escapeHtml(steps)}${d.restart_scheduled ? "\n✓ restart_scheduled" : ""}</pre>`;
-          scrollToBottom();
-          if (d.ok && d.restart_scheduled) {
-            const msg = document.createElement("div");
-            msg.className = "msg-row agent";
-            msg.innerHTML = `<div class="msg-label">System</div><div class="bubble">Restarting… hard reload in 3s</div>`;
-            messagesEl.appendChild(msg);
-            scrollToBottom();
-            setTimeout(() => {
-              if ('caches' in window) caches.keys().then(names => names.forEach(n => caches.delete(n)));
-              if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-              window.location.reload(true);
-            }, 3000);
-          }
-        })
-        .catch((e) => {
-          sysRow.querySelector(".bubble").textContent = `Auto-update failed: ${e.message}`;
-          scrollToBottom();
-        });
-      return;
-    }
-    // !convergence runs the Lantern convergence loop + version check + auto-update
+    // !convergence runs the Lantern convergence loop
     if (text === "!convergence") {
       inputEl.value = "";
-      triggerAutoupdate("Auto-update");
+      inputEl.style.height = "auto";
       const sysRow = document.createElement("div");
       sysRow.className = "msg-row agent";
       sysRow.innerHTML = `<div class="msg-label">System</div><div class="bubble">Running convergence loop…</div>`;
       messagesEl.appendChild(sysRow);
       scrollToBottom();
-
-      const runLoop = fetch(`${serverBase}/api/actions/run-loop`, { method: "POST" });
-      const fetchVersion = fetch(`${serverBase}/api/version`).then(r => r.ok ? r.json() : null).catch(() => null);
-
-      Promise.all([runLoop, fetchVersion])
-        .then(async ([loopR, versionD]) => {
-          const d = await loopR.json();
-          const rawOut = d.stdout || "";
-          const rawErr = d.stderr || "";
-          const tag = versionD?.version?.tag || "unknown";
-          const commit = versionD?.version?.commit ? versionD.version.commit.slice(0, 7) : "?";
-
-          // Extract JSON from stdout (convergence loop prints it at the end)
-          let promo = "";
-          try {
-            const jsonMatch = rawOut.match(/\{[\s\S]*"promotion_ready"[\s\S]*\}/);
-            if (jsonMatch) {
-              const loopJson = JSON.parse(jsonMatch[0]);
-              promo = loopJson.promotion_ready ? "✓ promotion_ready" : "✗ not ready";
-            }
-          } catch {}
-
-          const out = rawOut.slice(0, 700);
-          const err = rawErr.slice(0, 300);
-
-          sysRow.querySelector(".bubble").innerHTML =
-            `<b>Convergence loop</b> ${loopR.ok ? "✓" : "✗"} <code>${tag}</code> <code>${commit}</code> ${promo}<pre style="margin-top:6px;white-space:pre-wrap;font-size:12px;opacity:0.85;">${escapeHtml(out)}${err ? "\n---stderr---\n" + escapeHtml(err) : ""}</pre>`;
+      fetch(`${serverBase}/api/actions/run-loop`, { method: "POST" })
+        .then(async (r) => {
+          const d = await r.json();
+          const out = d.stdout ? d.stdout.slice(0, 800) : "";
+          const err = d.stderr ? d.stderr.slice(0, 400) : "";
+          sysRow.querySelector(".bubble").innerHTML = `<b>Convergence loop</b> ${r.ok ? "✓" : "✗"}<pre style="margin-top:6px;white-space:pre-wrap;font-size:12px;opacity:0.85;">${escapeHtml(out)}${err ? "\n---stderr---\n" + escapeHtml(err) : ""}</pre>`;
           scrollToBottom();
         })
         .catch((e) => {
@@ -272,10 +184,10 @@
         });
       return;
     }
-    // !comet-leap shows COMET-LEAP plan status + auto-update
+    // !comet-leap shows COMET-LEAP plan status
     if (text === "!comet-leap") {
       inputEl.value = "";
-      triggerAutoupdate("Auto-update");
+      inputEl.style.height = "auto";
       const sysRow = document.createElement("div");
       sysRow.className = "msg-row agent";
       sysRow.innerHTML = `<div class="msg-label">System</div><div class="bubble"><b>COMET LEAP</b> — Master Plan v1.0<br>Status: APPROVED FOR PRINTING · Confidence: 72%<br><a href="/view?path=lantern-discord/COMET-LEAP-MASTER-PLAN-v1.0.md" target="_blank" style="color:var(--accent);">Open full plan ↗</a></div>`;
@@ -283,24 +195,23 @@
       scrollToBottom();
       return;
     }
-    // Allow backend-streaming bang commands through; reject truly unknown ones
-    const STREAMING_BANGS = ["swarm", "converge"];
+    // Explicitly reject other bang commands so they don't silently behave like normal chat
     const bangMatch = text.match(/^!(\S+)/);
     if (bangMatch) {
+      inputEl.value = "";
+      inputEl.style.height = "auto";
       const cmdName = bangMatch[1].toLowerCase();
-      if (!STREAMING_BANGS.includes(cmdName)) {
-        inputEl.value = "";
-        const errRow = document.createElement("div");
-        errRow.className = "msg-row agent";
-        errRow.innerHTML = `<div class="msg-label">System</div><div class="bubble" style="color:var(--danger);">Unsupported command: !${escapeHtml(cmdName)}</div>`;
-        messagesEl.appendChild(errRow);
-        scrollToBottom();
-        return;
-      }
+      const errRow = document.createElement("div");
+      errRow.className = "msg-row agent";
+      errRow.innerHTML = `<div class="msg-label">System</div><div class="bubble" style="color:var(--danger);">Unsupported command: !${escapeHtml(cmdName)}</div>`;
+      messagesEl.appendChild(errRow);
+      scrollToBottom();
+      return;
     }
     if (emptyState) emptyState.style.display = "none";
     appendUserBubble(text);
     inputEl.value = "";
+    inputEl.style.height = "auto";
     analytics.messagesSent++;
     analytics.lastAgent = agents.find((a) => a.id === agentSelect.value)?.name || agentSelect.value;
     analytics.record("send", text.slice(0, 40));
@@ -317,7 +228,7 @@
     scrollToBottom();
   }
 
-  // ── Stream agent response ───────────────────────────────────────────────────
+  // ── Stream agent response ─────────────────────────────────────────────
   function streamAgentResponse(message) {
     isStreaming = true;
     sendBtn.disabled = true;
@@ -350,7 +261,7 @@
     // POST with history for multi-turn context; history excludes current message (already appended)
     const historyToSend = conversationHistory.slice(0, -1).slice(-6); // last 6 turns before this message
 
-    fetch(`${serverBase}/api/dream/chat/stream`, {
+    fetch(`${serverBase}/api/dream-chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, provider: provider || undefined, agent: agent || undefined, history: historyToSend, mcp: keystoneMcpEnabled }),
@@ -388,6 +299,7 @@
               }
               if (evt.type === "done" && !streamFinished) {
                 streamFinished = true;
+                // If server stripped the [DOORS:] marker, rewrite bubble with clean text
                 const displayText = evt.cleanText || fullText;
                 if (evt.cleanText && evt.cleanText !== fullText) {
                   bubble.textContent = evt.cleanText;
@@ -430,6 +342,7 @@
     if (!text && !error) {
       bubble.textContent = bubble.textContent || "…";
     }
+    // Save clean assistant reply to history (no [DOORS:] marker)
     if (text) conversationHistory.push({ role: "assistant", text });
 
     // Analytics
@@ -449,7 +362,7 @@
       const badge = document.createElement("div");
       badge.className = `source-badge ${source}`;
       const names = { anthropic: "Claude", openai: "ChatGPT", gemini: "Gemini", grok: "Grok", ollama: "Ollama" };
-      badge.textContent = `❆ ${names[source] || source}`;
+      badge.textContent = `✦ ${names[source] || source}`;
       row.appendChild(badge);
     }
 
@@ -472,7 +385,7 @@
       row.appendChild(chips);
     }
 
-    // ── Three Doors banner ──────────────────────────────────────────────────────
+    // ── Three Doors banner ────────────────────────────────────────────
     if (Array.isArray(suggestions) && suggestions.length === 3) {
       appendDoorsBanner(row, suggestions);
     }
@@ -485,12 +398,12 @@
       imgNote.textContent = `🎨 ${imagePrompt}`;
       row.appendChild(imgNote);
     }
-    // ❆ Log dream button — lets user save conversation as a dream entry
+    // ✦ Log dream button — lets user save conversation as a dream entry
     if (text && source !== "failed" && source !== "error") {
       const logBtn = document.createElement("button");
       logBtn.className = "suggestion";
       logBtn.style.cssText = "margin-top:6px;border-color:var(--accent-dim);color:var(--accent);";
-      logBtn.textContent = "❆ Log this as a dream";
+      logBtn.textContent = "✦ Log this as a dream";
       logBtn.onclick = async () => {
         logBtn.disabled = true;
         logBtn.textContent = "Saving…";
@@ -580,7 +493,7 @@
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  // ── Settings drawer ─────────────────────────────────────────────────────
+  // ── Settings drawer ───────────────────────────────────────────────────
   const PROVIDERS = [
     { id: "claude",  envKey: "ANTHROPIC_API_KEY" },
     { id: "gemini",  envKey: "GEMINI_API_KEY" },
@@ -680,9 +593,9 @@
   // Load status badge on open if a provider was missing last time
   loadProviderStatus();
 
-  // ════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
   //  Log Dream — structured capture drawer
-  // ════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
   const logDreamTags = { emotions: [], tags: [], symbols: [] };
 
   function openLogDream() {
@@ -777,9 +690,9 @@
     }
   }
 
-  // ════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
   //  CTF — Convergence Text Format symbol dictionary
-  // ════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
   const CTF = {
     "see":"👁","sight":"👁","vision":"🔭","hear":"👂","sound":"🎵","music":"🎵",
     "taste":"👅","smell":"🌸","touch":"🤲","feel":"💫","sense":"🌐",
@@ -787,18 +700,18 @@
     "door":"🚪","gate":"⛩","path":"🛤","bridge":"🌉","tunnel":"🕳",
     "light":"✨","glow":"🌟","fire":"🔥","flame":"🔥","water":"🌊","fog":"🌫",
     "earth":"🌍","air":"💨","void":"◻","dark":"🌑","shadow":"🌒",
-    "lantern":"🏮","key":"🗝","mirror":"🪤","clock":"⏰","star":"⭐","moon":"🌙",
+    "lantern":"🏮","key":"🗝","mirror":"🪞","clock":"⏰","star":"⭐","moon":"🌙",
     "sun":"☀","eye":"👁","hand":"🤲","heart":"💜","anchor":"⚓","compass":"🧭",
     "tree":"🌲","forest":"🌿","flower":"🌸","crystal":"💎","stone":"🪨","seed":"🌱",
     "dream":"🌙","memory":"💭","thought":"💭","idea":"💡","pattern":"🌀","mesh":"⬡",
     "convergence":"◈","signal":"📡","noise":"〰","loop":"🔄","flow":"〜","layer":"⧖",
-    "symbol":"❆","glyph":"⌖","code":"⌥","cipher":"⊛","rune":"ᚱ","sigil":"⛤",
+    "symbol":"✦","glyph":"⌖","code":"⌥","cipher":"⊛","rune":"ᚱ","sigil":"⛤",
     "peace":"🕊","wonder":"✨","fear":"⚡","joy":"☀","love":"💜","loss":"🌑","hope":"🌅",
     "curious":"🔭","aware":"👁","alive":"🌱","free":"🕊","safe":"⚓","home":"🏮",
-    "past":"◀","future":"▶","now":"◎","moment":"⊙","night":"🌙","dawn":"🌅","cycle":"🔄",
-    "city":"🏙","ocean":"🌊","sky":"🌌","cave":"🕳","mountain":"⛰","desert":"🏕",
-    "color":"🎨","red":"🔴","blue":"🔵","green":"🟢","purple":"🟣","gold":"❆","white":"◯","black":"●",
-    "voice":"🎤","speak":"🗣","listen":"👂","silence":"◻","word":"📝","story":"📖",
+    "past":"◀","future":"▶","now":"◉","moment":"⊙","night":"🌙","dawn":"🌅","cycle":"🔄",
+    "city":"🏙","ocean":"🌊","sky":"🌌","cave":"🕳","mountain":"⛰","desert":"🏜",
+    "color":"🎨","red":"🔴","blue":"🔵","green":"🟢","purple":"🟣","gold":"✦","white":"◯","black":"●",
+    "voice":"🎙","speak":"🗣","listen":"👂","silence":"◻","word":"📝","story":"📖",
     "open":"◉","close":"●","enter":"→","exit":"←","return":"↩","begin":"▶","end":"■",
   };
 
@@ -851,6 +764,8 @@
 
   // Auto-suggest CTF as you type
   inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + "px";
     const words = inputEl.value.split(/\s+/);
     const last = words[words.length - 1];
     if (last.length >= 3 && !ctfPaletteOpen) {
@@ -884,9 +799,9 @@
     }
   });
 
-  // ════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
   //  Voice — STT (Web Speech API) + TTS
-  // ════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
   const voiceBtn = document.getElementById("voice-btn");
   let recognition = null;
   let isListening = false;
@@ -910,7 +825,7 @@
         inputEl.value = accumulated;
         inputEl.dispatchEvent(new Event("input"));
       } else if (interim) {
-        inputEl.placeholder = "🎤 " + interim;
+        inputEl.placeholder = "🎙 " + interim;
       }
     };
     recognition.onend = () => {
@@ -935,7 +850,7 @@
     } else {
       isListening = true;
       voiceBtn.classList.add("listening");
-      inputEl.placeholder = "🎤 Listening…";
+      inputEl.placeholder = "🎙 Listening…";
       try { recognition.start(); } catch(e) { isListening = false; voiceBtn.classList.remove("listening"); inputEl.placeholder = "Tell me a dream…"; }
     }
   }
@@ -949,7 +864,7 @@
 
   async function speakText(text) {
     stopSpeaking();
-    const clean = text.replace(/[❆◈⬡⛤⌖⊛ᚱ]/g, "").replace(/[^\x00-\x7F]/g, (c) => {
+    const clean = text.replace(/\[DOORS:[^\]]+\]/gi, "").replace(/[✦◈⬡⛤⌖⊛ᚱ]/g, "").replace(/[^\x00-\x7F]/g, (c) => {
       return c.codePointAt(0) > 0x2FFF ? " " : c;
     }).trim();
     if (!clean) return;
@@ -1061,3 +976,172 @@
   loadVoiceSettings();
 
 
+  // ══════════════════════════════════════════════════════════════════
+  //  Three Doors Banner — Canvas-generated widescreen PNG
+  //  Called after each AI reply that includes 3 door suggestions.
+  // ══════════════════════════════════════════════════════════════════
+
+  // Symbol glyphs drawn in each door panel (cycled from the door text keywords)
+  const DOOR_GLYPHS = {
+    fog:"🌫", mist:"🌫", cloud:"☁", light:"✨", glow:"🌟", door:"🚪", gate:"⛩",
+    step:"🚶", walk:"🚶", ground:"🌍", earth:"🌍", solid:"⚓", breath:"💨",
+    hear:"👂", sound:"🎵", voice:"🎙", feel:"💫", touch:"🤲", taste:"👅",
+    name:"📝", word:"📝", see:"👁", sight:"👁", open:"◉", find:"🔭",
+    return:"↩", home:"🏮", path:"🛤", bridge:"🌉", water:"🌊", fire:"🔥",
+    dream:"🌙", wonder:"✨", memory:"💭", salt:"🌊", threshold:"🚪",
+    creak:"🚪", wait:"⏰", beyond:"▶", mist2:"🌫", cross:"🌉", call:"📡",
+  };
+
+  function pickGlyph(text) {
+    const lower = text.toLowerCase();
+    for (const [word, g] of Object.entries(DOOR_GLYPHS)) {
+      if (lower.includes(word)) return g;
+    }
+    return "🚪";
+  }
+
+  // Atmospheric colour palettes for each door position (left / center / right)
+  const DOOR_PALETTES = [
+    { top: "#0d0820", mid: "#1a0e35", bot: "#2a1650", accent: "#7c6af7", frame: "#4a3090" },
+    { top: "#0a1520", mid: "#0e2535", bot: "#123050", accent: "#4fc3f7", frame: "#2a6090" },
+    { top: "#0a1a0e", mid: "#0e2e18", bot: "#124522", accent: "#4caf82", frame: "#2a7050" },
+  ];
+
+  function drawDoorsBanner(doors) {
+    const W = 900, H = 220;
+    const panelW = Math.floor(W / 3);
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    doors.forEach((doorText, i) => {
+      const pal = DOOR_PALETTES[i % DOOR_PALETTES.length];
+      const x0 = i * panelW;
+      const glyph = pickGlyph(doorText);
+
+      // Background gradient
+      const grad = ctx.createLinearGradient(x0, 0, x0, H);
+      grad.addColorStop(0, pal.top);
+      grad.addColorStop(0.5, pal.mid);
+      grad.addColorStop(1, pal.bot);
+      ctx.fillStyle = grad;
+      ctx.fillRect(x0, 0, panelW, H);
+
+      // Subtle noise texture via small dots
+      ctx.globalAlpha = 0.04;
+      for (let y = 0; y < H; y += 3) {
+        for (let x = x0; x < x0 + panelW; x += 3) {
+          if (Math.random() > 0.7) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Glowing radial behind glyph
+      const cx = x0 + panelW / 2, cy = H * 0.38;
+      const radial = ctx.createRadialGradient(cx, cy, 4, cx, cy, 52);
+      radial.addColorStop(0, pal.accent + "55");
+      radial.addColorStop(1, "transparent");
+      ctx.fillStyle = radial;
+      ctx.fillRect(x0, 0, panelW, H);
+
+      // Glyph (large, centred upper)
+      ctx.font = "52px serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.globalAlpha = 0.92;
+      ctx.fillText(glyph, cx, cy);
+      ctx.globalAlpha = 1;
+
+      // Door arch shape
+      ctx.strokeStyle = pal.accent + "88";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const aw = 34, ah = 50, ay = H * 0.42;
+      ctx.moveTo(cx - aw, ay + ah);
+      ctx.lineTo(cx - aw, ay);
+      ctx.arc(cx, ay, aw, Math.PI, 0);
+      ctx.lineTo(cx + aw, ay + ah);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Door label number (small, top-left of panel)
+      ctx.fillStyle = pal.accent + "aa";
+      ctx.font = "bold 11px monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(`DOOR ${i + 1}`, x0 + 10, 10);
+
+      // Door text (wrapped, bottom third)
+      ctx.fillStyle = "#e8eaf6dd";
+      ctx.font = "13px 'Segoe UI', system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const words = doorText.split(" ");
+      const lines = [], maxW = panelW - 24;
+      let line = "";
+      for (const w of words) {
+        const test = line ? line + " " + w : w;
+        if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+        else line = test;
+      }
+      if (line) lines.push(line);
+      const lineH = 18, textTop = H - lines.length * lineH - 18;
+      lines.forEach((l, li) => ctx.fillText(l, cx, textTop + li * lineH));
+
+      // Vertical divider (except after last)
+      if (i < 2) {
+        const bevelX = x0 + panelW;
+        // Dark shadow side
+        ctx.strokeStyle = "rgba(0,0,0,0.6)";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(bevelX, 0); ctx.lineTo(bevelX, H); ctx.stroke();
+        // Light highlight side
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(bevelX + 1, 0); ctx.lineTo(bevelX + 1, H); ctx.stroke();
+      }
+    });
+
+    // Outer beveled frame
+    const bord = 3;
+    // Highlight (top-left)
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = bord;
+    ctx.beginPath();
+    ctx.moveTo(0, H); ctx.lineTo(0, 0); ctx.lineTo(W, 0);
+    ctx.stroke();
+    // Shadow (bottom-right)
+    ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.beginPath();
+    ctx.moveTo(W, 0); ctx.lineTo(W, H); ctx.lineTo(0, H);
+    ctx.stroke();
+    // Inner highlight
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bord, bord, W - bord * 2, H - bord * 2);
+
+    return canvas;
+  }
+
+  function appendDoorsBanner(row, doors) {
+    if (!doors || doors.length < 3) return;
+    const wrap = document.createElement("div");
+    wrap.className = "doors-banner";
+    const canvas = drawDoorsBanner(doors);
+    wrap.appendChild(canvas);
+    // Save-as-PNG on click
+    const saveHint = document.createElement("div");
+    saveHint.className = "doors-banner-save";
+    saveHint.textContent = "click to save";
+    wrap.addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.download = `dream-doors-${Date.now()}.png`;
+      a.href = canvas.toDataURL("image/png");
+      a.click();
+    });
+    row.appendChild(wrap);
+    scrollToBottom();
+  }

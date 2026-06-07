@@ -1,5 +1,7 @@
 const https = require("https");
-const { refreshProviderCache } = require("../lib/provider-cache");
+const http = require("http");
+
+const DREAM_COMPANION_SYSTEM = "You are the Lantern OS dream journal companion. Help the user reflect on dreams, symbols, doors, anchors, convergence patterns, and memory traces without overclaiming certainty. Keep responses grounded, useful, and symbolically aware.";
 
 // Dream Journal core — create, chat, stream, stats, search, export, read, settings
 const PROVIDER_KEYS = [
@@ -15,6 +17,174 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
     readRecentDreams, dreamChatReply, appendConversationEntry,
     unifiedAgentGreet, unifiedAgentHealth, unifiedAgentInspect,
     handleStreamChat } = deps;
+
+  // ── Dream-chat: Ollama-first with dream companion system prompt ──────
+  if (url.pathname === "/api/dream-chat" && req.method === "POST") {
+    const ollamaBase = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+    const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5-coder";
+
+    const raw = await collectRequestBody(req).catch(() => "{}");
+    const body = JSON.parse(raw || "{}");
+    const message = String(body.message || "").slice(0, 4000).trim();
+    const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
+
+    if (!message) { sendJson(res, { error: "message_required" }, 400); return true; }
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+      "X-Accel-Buffering": "no",
+    });
+
+    const tok = (t) => res.write(`data: ${JSON.stringify({ type: "token", text: t })}\n\n`);
+    const done = (src, extra = {}) => { res.write(`data: ${JSON.stringify({ type: "done", source: src, agent: "dream-companion", online: src !== "failed", ...extra })}\n\n`); res.end(); };
+    const err = (msg) => res.write(`data: ${JSON.stringify({ type: "error", text: msg })}\n\n`);
+
+    const messages = [
+      { role: "system", content: DREAM_COMPANION_SYSTEM },
+      ...history.map(h => ({ role: h.role === "assistant" ? "assistant" : "user", content: h.text })),
+      { role: "user", content: message },
+    ];
+
+    let fullReply = "";
+    let ollamaErr = null;
+
+    // ── Attempt 1: Ollama ──────────────────────────────────────────────
+    try {
+      const payload = JSON.stringify({ model: ollamaModel, stream: true, messages });
+      const ollamaUrl = new URL(ollamaBase);
+      await new Promise((resolve, reject) => {
+        const req2 = http.request({
+          hostname: ollamaUrl.hostname,
+          port: parseInt(ollamaUrl.port || "11434", 10),
+          path: "/api/chat",
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) },
+        }, (upstream) => {
+          if (upstream.statusCode !== 200) { upstream.resume(); reject(new Error(`ollama_http_${upstream.statusCode}`)); return; }
+          let buf = "";
+          upstream.on("data", (chunk) => {
+            buf += chunk.toString();
+            const lines = buf.split("\n"); buf = lines.pop();
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try { const t = JSON.parse(line).message?.content || ""; if (t) { fullReply += t; tok(t); } } catch { /* skip */ }
+            }
+          });
+          upstream.on("end", resolve);
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(20000, () => { req2.destroy(); reject(new Error("ollama_timeout")); });
+        req2.write(payload); req2.end();
+      });
+      if (fullReply) {
+        console.log(`[dream-chat] ollama ok — ${ollamaModel} — ${fullReply.length} chars`);
+        done("ollama", { model: ollamaModel });
+        return true;
+      }
+    } catch (e) {
+      ollamaErr = e.message;
+      console.warn(`[dream-chat] ollama failed: ${e.message}`);
+    }
+
+    // ── Attempt 2: Cloud fallback (limited — only if no OLLAMA_FIRST override) ──
+    const ollamaFirst = process.env.OLLAMA_FIRST === "true";
+    const anthropicKey = !ollamaFirst && process.env.ANTHROPIC_API_KEY;
+    const geminiKey = !ollamaFirst && (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+
+    if (anthropicKey) {
+      try {
+        const cloudPayload = JSON.stringify({
+          model: process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022",
+          max_tokens: 512, stream: true,
+          system: DREAM_COMPANION_SYSTEM,
+          messages: messages.slice(1),
+        });
+        let cloudOk = false;
+        await new Promise((resolve, reject) => {
+          const req2 = https.request({
+            hostname: "api.anthropic.com", path: "/v1/messages", method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01", "Content-Length": Buffer.byteLength(cloudPayload) },
+          }, (upstream) => {
+            if (upstream.statusCode !== 200) { upstream.resume(); reject(new Error(`anthropic_${upstream.statusCode}`)); return; }
+            cloudOk = true;
+            let buf = "";
+            upstream.on("data", (chunk) => {
+              buf += chunk.toString();
+              const lines = buf.split("\n"); buf = lines.pop();
+              for (const line of lines) {
+                if (!line.startsWith("data:")) continue;
+                const r = line.slice(5).trim(); if (!r || r === "[DONE]") continue;
+                try { const e2 = JSON.parse(r); if (e2.type === "content_block_delta" && e2.delta?.text) { fullReply += e2.delta.text; tok(e2.delta.text); } } catch { /* skip */ }
+              }
+            });
+            upstream.on("end", resolve); upstream.on("error", reject);
+          });
+          req2.on("error", reject); req2.write(cloudPayload); req2.end();
+        });
+        if (cloudOk && fullReply) {
+          console.log(`[dream-chat] anthropic fallback ok — ${fullReply.length} chars`);
+          done("anthropic", { fallback: "ollama_unavailable" });
+          return true;
+        }
+      } catch (e2) { console.warn(`[dream-chat] anthropic fallback failed: ${e2.message}`); }
+    }
+
+    if (geminiKey) {
+      try {
+        const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+        const geminiPayload = JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: `${DREAM_COMPANION_SYSTEM}\n\n${message}` }] }],
+          generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
+        });
+        let geminiOk = false;
+        await new Promise((resolve, reject) => {
+          const req2 = https.request({
+            hostname: "generativelanguage.googleapis.com",
+            path: `/v1beta/models/${geminiModel}:streamGenerateContent?alt=sse&key=${geminiKey}`,
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(geminiPayload) },
+          }, (upstream) => {
+            if (upstream.statusCode !== 200) { upstream.resume(); reject(new Error(`gemini_${upstream.statusCode}`)); return; }
+            geminiOk = true;
+            let buf = "";
+            upstream.on("data", (chunk) => {
+              buf += chunk.toString();
+              const lines = buf.split("\n"); buf = lines.pop();
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const r = line.slice(6).trim(); if (!r) continue;
+                try {
+                  const e2 = JSON.parse(r);
+                  for (const p of (e2.candidates?.[0]?.content?.parts || [])) { if (p.text) { fullReply += p.text; tok(p.text); } }
+                } catch { /* skip */ }
+              }
+            });
+            upstream.on("end", resolve); upstream.on("error", reject);
+          });
+          req2.on("error", reject);
+          req2.setTimeout(15000, () => { req2.destroy(); reject(new Error("gemini_timeout")); });
+          req2.write(geminiPayload); req2.end();
+        });
+        if (geminiOk && fullReply) {
+          console.log(`[dream-chat] gemini fallback ok — ${fullReply.length} chars`);
+          done("gemini", { fallback: "ollama_unavailable" });
+          return true;
+        }
+      } catch (e3) { console.warn(`[dream-chat] gemini fallback failed: ${e3.message}`); }
+    }
+
+    // ── All failed ─────────────────────────────────────────────────────
+    const hint = ollamaErr?.includes("ECONNREFUSED") || ollamaErr?.includes("timeout")
+      ? `Ollama is not running. Fix: ollama serve && ollama pull ${ollamaModel}`
+      : `No providers available. Run Ollama or set ANTHROPIC_API_KEY / GEMINI_API_KEY.`;
+    err(hint);
+    done("failed");
+    return true;
+  }
 
   // ── Unified agent endpoints ───────────────────────────────────────────
   if (url.pathname === "/api/dream/greet" && req.method === "GET") {
@@ -80,29 +250,13 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       try {
         const { spawn } = require("child_process");
         const py = process.platform === "win32" ? "python" : "python3";
-        const script = `from csf.dream_compressor import compress_dream_file; compress_dream_file(r'${monthFile}')`;
+        const script = `from src.csf.dream_compressor import compress_dream_file; compress_dream_file(r'${monthFile}')`;
         const proc = spawn(py, ["-c", script], { cwd: repoRoot, env: { ...process.env, PYTHONPATH: path.join(repoRoot, "src") } });
         proc.on("close", (code) => {
           // Compression complete; .csf file written alongside .jsonl
         });
       } catch { /* compression is non-critical */ }
-
-      // MemOS save-time ingest (non-blocking)
-      let memosResult = { ingested: false };
-      try {
-        const { spawn } = require("child_process");
-        const py = process.platform === "win32" ? "python" : "python3";
-        const entryJson = JSON.stringify(entry).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        const script = `from convergence_io.memos_bridge import get_cube; c=get_cube(); r=c.ingest_entry(__import__('json').loads('${entryJson}')); print(__import__('json').dumps({'ingested': r}))`;
-        const proc = spawn(py, ["-c", script], { cwd: repoRoot, env: { ...process.env, PYTHONPATH: path.join(repoRoot, "src") } });
-        let out = "";
-        proc.stdout.on("data", (d) => { out += d.toString(); });
-        proc.on("close", () => {
-          try { memosResult = JSON.parse(out.trim()); } catch { /* non-critical */ }
-        });
-      } catch { /* MemOS ingest is non-critical */ }
-
-      sendJson(res, { id: dreamId, saved: true, entry, csf: csfStats, memos: memosResult });
+      sendJson(res, { id: dreamId, saved: true, entry, csf: csfStats });
     } catch (error) { sendJson(res, { error: error.message }, 400); }
     return true;
   }
@@ -113,27 +267,11 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       const body = JSON.parse(raw || "{}");
       const message = String(body.message || "").slice(0, maxDreamerTextLength);
       const recentDreams = readRecentDreams(5);
-      const provStart = Date.now();
       const result = await dreamChatReply(message, recentDreams, body.agent || "", body.provider || "");
-      const provLatency = Date.now() - provStart;
       try {
         await appendConversationEntry({ recordedAt: new Date().toISOString(), surface: "dream-journal", role: "operator", text: message.slice(0, maxConversationTextLength) });
         await appendConversationEntry({ recordedAt: new Date().toISOString(), surface: "dream-journal", role: "lantern", text: String(result.reply || "").slice(0, maxConversationTextLength) });
       } catch { /* logging non-critical */ }
-      // Convergence IO provenance (AAPF) — lightweight Node-side record
-      try {
-        recordChatProvenance({
-          actionId: `chat-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 4)}`,
-          agentId: result.agent || "unknown",
-          providerId: result.online ? (body.provider || "auto") : "offline",
-          inputSummary: message.slice(0, 200),
-          outputSummary: String(result.reply || "").slice(0, 200),
-          latencyMs: provLatency,
-          status: result.reply ? "ok" : (result.error ? "error" : "offline"),
-          errorMsg: result.error || "",
-          metadata: { source: result.source || "unknown", threeDoors: !!result.threeDoors },
-        });
-      } catch { /* provenance non-critical */ }
       if (!result.reply) { sendJson(res, { error: result.error || "no_provider_configured", agent: result.agent, online: false }, 503); return true; }
       sendJson(res, { ...result, generatedAt: new Date().toISOString() });
     } catch (error) { sendJson(res, { error: error.message, online: false }); }
@@ -143,31 +281,6 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
   if ((url.pathname === "/api/dream/stream" && req.method === "GET") ||
       (url.pathname === "/api/dream/chat/stream" && req.method === "POST")) {
     await handleStreamChat(req, url, res);
-    return true;
-  }
-
-  // ── MemOS memory health ───────────────────────────────────────────────
-  if (url.pathname === "/api/dream/memory/health" && req.method === "GET") {
-    try {
-      const { spawn } = require("child_process");
-      const py = process.platform === "win32" ? "python" : "python3";
-      const script = `from convergence_io.memos_bridge import memos_available, get_cube; c=get_cube(); print(__import__('json').dumps({'available': memos_available(), 'installed': memos_available(), 'entry_count': len(c._entries), 'fallback': not memos_available(), 'last_ingest': c._entries[0].get('timestamp','') if c._entries else ''}))`;
-      const result = await new Promise((resolve, reject) => {
-        let out = "", err = "";
-        const proc = spawn(py, ["-c", script], { cwd: repoRoot, env: { ...process.env, PYTHONPATH: path.join(repoRoot, "src") } });
-        proc.stdout.on("data", (d) => { out += d.toString(); });
-        proc.stderr.on("data", (d) => { err += d.toString(); });
-        proc.on("close", (code) => {
-          if (code !== 0) reject(new Error(err || `exit ${code}`));
-          else resolve(out.trim());
-        });
-        proc.on("error", reject);
-      });
-      const data = JSON.parse(result);
-      sendJson(res, { ...data, generatedAt: new Date().toISOString() });
-    } catch (error) {
-      sendJson(res, { available: false, installed: false, entry_count: 0, fallback: true, error: error.message, generatedAt: new Date().toISOString() });
-    }
     return true;
   }
 
@@ -308,7 +421,7 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
         const escape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const rows = [cols.join(","), ...entries.map(e => [
           escape(e.id), escape(e.timestamp), escape(e.kind), escape(e.text),
-          escape(e.lucidity), escape((e.emotions || []).join(";")),
+          escape(e.lucidity), escape((e.emotions || []).join(";")klären),
           escape((e.tags || []).join(";")), escape((e.symbols || []).join(";")), escape((e.ctf_glyphs || []).join(";"))
         ].join(","))];
         res.writeHead(200, { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="dream-journal-${new Date().toISOString().substring(0,10)}.csv"` });
@@ -457,43 +570,11 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       if (value) lines.push(`${key}=${value}`);
       fs.writeFileSync(envFilePath, lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n", "utf8");
       if (value) process.env[key] = value; else delete process.env[key];
-      refreshProviderCache();
       sendJson(res, { ok: true });
     } catch (err) { sendJson(res, { error: err.message }, 500); }
     return true;
   }
 };
-
-// Lightweight AAPF provenance recorder (Node-side mirror of ConvergenceIO engine)
-function recordChatProvenance({ actionId, agentId, providerId, inputSummary, outputSummary, latencyMs, status, errorMsg, metadata }) {
-  const crypto = require("crypto");
-  const record = {
-    action_id: actionId,
-    timestamp: new Date().toISOString(),
-    actor: { agent_id: agentId, provider_id: providerId, model: "" },
-    action_type: "chat",
-    input_summary: inputSummary,
-    output_summary: outputSummary,
-    capability_claim_id: null,
-    nap_profile_id: null,
-    dcf_ref: null,
-    tier: "wanderer",
-    consent_state: "implicit",
-    data_classifications: ["dream_content"],
-    authority_check: "passed",
-    boundary: "local",
-    latency_ms: latencyMs,
-    status,
-    error_msg: errorMsg,
-    metadata: metadata || {},
-  };
-  const payload = JSON.stringify(record, Object.keys(record).sort());
-  record.integrity_hash = crypto.createHash("sha256").update(payload).digest("hex");
-  const provenanceDir = require("path").join(require("path").resolve(__dirname, "..", "..", ".."), "data", "provenance");
-  if (!require("fs").existsSync(provenanceDir)) require("fs").mkdirSync(provenanceDir, { recursive: true });
-  const provenancePath = require("path").join(provenanceDir, "actions.jsonl");
-  require("fs").appendFileSync(provenancePath, JSON.stringify(record) + "\n", "utf8");
-}
 
 // Shared helper — read all dream entries from monthly JSONL files
 function loadDreamEntries(fs, path, repoRoot, sorted = false) {
