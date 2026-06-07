@@ -189,7 +189,24 @@
     // !autoupdate pulls latest code, installs deps, and restarts server
     if (text === "!autoupdate") {
       inputEl.value = "";
-      triggerAutoupdate("Auto-update");
+      inputEl.style.height = "auto";
+      const sysRow = document.createElement("div");
+      sysRow.className = "msg-row agent";
+      sysRow.innerHTML = `<div class="msg-label">System</div><div class="bubble">Auto-update: pulling latest code…</div>`;
+      messagesEl.appendChild(sysRow);
+      scrollToBottom();
+      fetch(`${serverBase}/api/actions/update`, { method: "POST" })
+        .then(async (r) => {
+          const d = await r.json();
+          const steps = (d.steps || []).map(s => `${s.ok ? "✓" : "✗"} ${s.step}`).join("\n");
+          sysRow.querySelector(".bubble").innerHTML =
+            `<b>Auto-update</b> ${d.ok ? "✓" : "✗"}<br><pre style="margin-top:6px;white-space:pre-wrap;font-size:12px;opacity:0.85;">${escapeHtml(steps)}${d.restart_scheduled ? "\n✓ restart_scheduled" : ""}</pre>`;
+          scrollToBottom();
+        })
+        .catch((e) => {
+          sysRow.querySelector(".bubble").textContent = `Auto-update failed: ${e.message}`;
+          scrollToBottom();
+        });
       return;
     }
     // !convergence runs the Lantern convergence loop + version check + auto-update
