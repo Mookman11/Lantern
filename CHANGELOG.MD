@@ -7,6 +7,23 @@ release date. This project is currently private and local-first, so release
 notes should be honest about what was verified locally and what remains design
 intent.
 
+## [1.1.0-rc.2] — 2026-06-06 — HFF Direct-Link Surface
+
+### Added
+- `apps/lantern-garage/public/hff/index.html` — static HFF dashboard landing surface.
+- `/hff` route alias in `apps/lantern-garage/routes/surfaces.js`.
+- HFF dashboard entries in `docs/ROOT-INDEX.md` and `docs/knowledge-center/ROOT.md`.
+
+### Boundary
+- This is a direct-link integration, not a root-page replacement.
+- Dream Journal remains the current root launcher experience.
+- Bayesian model upgrades, HFF API proxying, route smoke tests, calibration receipts, validation artifacts, and any root promotion remain gated follow-up work.
+
+### Verification
+- Repository branch created and static route files updated.
+- No workflow run was returned for the latest route commit at the time of inspection.
+- Local Node route smoke tests were not run in this environment.
+
 ## [1.1.0-rc.1] — 2026-06-06 — Parallax Dream Door + Deploy Fix
 
 ### Dream Chat
@@ -157,28 +174,3 @@ intent.
 - **#166** hff-api load_data_source() returns mock data -- not yet implemented
 - **#167** discord lounge bot memory_layer export_csf_stub is a placeholder
 - **#168** discord lounge bot bot.py is empty and bot_v2.py missing — bot won't start
-
-### Fixed
-
-- **#168** Restored Discord bot v2 slash commands from commit b8b5cd9; bot.py and bot_v2.py both populated
-
-- Discord bot launcher now loads .env.local and falls back to User/Machine environment variables
-
-### Added
-
-- **#169** Discord Bot settings integrated into Dream Chat settings drawer (DISCORD_BOT_TOKEN, LANTERN_DISCORD_GUILD_ID)
-- Web UI saves Discord credentials to .env.local; bot reads them automatically on startup
-- Initial workspace governance files for changelog, license, security, support,
-  code of conduct, and editor defaults.
-
-### Verification
-
-- Added as documentation-only files; no runtime behavior changed.
-
-## Changelog Rules
-
-- Prefer concrete dates in `YYYY-MM-DD` format.
-- Record local verification evidence for user-facing changes.
-- Mark unverified, design-only, or future-facing claims explicitly.
-- Keep private data, secrets, journal entries, and local receipts out of release
-  notes unless they are referenced only as redacted evidence paths.
