@@ -20,28 +20,38 @@ python -m pip install -r requirements.txt
 
 ---
 
-## 1. Start the Core Web Server (Required)
+## 1. Full Stack Boot (Recommended)
 
-
-**Synced to master (recommended — pulls latest master then auto-restarts on file changes):**
+One command pulls master, seeds HFF data, and starts the server with auto-restart:
 
 ```bash
 npm run start:master --prefix apps/lantern-garage
 ```
 
-This always deploys from `master`. Never runs a feature branch.
+What it does in order:
+1. `git pull origin master` — always on master, never a feature branch
+2. `python3 integrations/human-flourishing-frameworks/export_snapshot.py` — seeds HFF world-model and writes `data/snapshot.json`
+3. `node --watch server.js` — starts server, auto-restarts on any file change
 
-**Development (auto-restarts on file changes, no git pull):**
+Open `http://127.0.0.1:4177`.
+
+**Optional services (separate terminals):**
+
+```bash
+# MCP server (port 8771)
+python src/mcp_server/server.py
+
+# Convergence loop (one-shot)
+python src/convergence_io_engine.py loop
+
+# Discord bot (requires DISCORD_BOT_TOKEN in .env.local)
+python src/discord_lounge_bot/bot.py
+```
+
+**Dev mode (no git pull, no HFF seed):**
 
 ```bash
 npm run dev --prefix apps/lantern-garage
-```
-**Production / one-shot:**
-
-```bash
-npm start --prefix apps/lantern-garage
-# or directly:
-node apps/lantern-garage/server.js
 ```
 
 Open `http://127.0.0.1:4177` — the Dream Journal chat UI.
