@@ -315,13 +315,13 @@
 
   <div class="input-area">
     <div class="input-row">
-      <textarea
+      <input
+        type="text"
         id="input"
         placeholder="Tell me a dream…"
-        rows="1"
         autocomplete="off"
         spellcheck="true"
-      ></textarea>
+      />
       <button class="voice-btn" id="voice-btn" title="Hold to speak (or click to toggle)" onclick="toggleVoice()">🎙</button>
       <button class="voice-btn" id="ctf-btn" title="CTF symbol palette" onclick="toggleCtfPalette()" style="font-size:14px;">✦</button>
       <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send">
@@ -332,7 +332,7 @@
       </button>
     </div>
     <div class="ctf-popup hidden" id="ctf-popup"></div>
-    <p class="input-hint" id="input-hint">Enter to send · Shift+Enter for newline · ⌘ voice · ⌘ K</p>
+    <p class="input-hint" id="input-hint">Enter to send · ⌘ voice · ⌘ K</p>
   </div>
 </div>
 

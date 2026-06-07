@@ -312,7 +312,7 @@
     .input-row:focus-within {
       border-color: var(--accent);
     }
-    textarea {
+    .input-row input[type="text"] {
       flex: 1;
       background: none;
       border: none;
@@ -320,13 +320,10 @@
       font-family: inherit;
       font-size: 0.95rem;
       line-height: 1.5;
-      resize: none;
       outline: none;
-      min-height: 24px;
-      max-height: 160px;
-      overflow-y: auto;
+      height: 24px;
     }
-    textarea::placeholder { color: var(--muted); }
+    .input-row input[type="text"]::placeholder { color: var(--muted); }
     .send-btn {
       flex-shrink: 0;
       width: 44px;

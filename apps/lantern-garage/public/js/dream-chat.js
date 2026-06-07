@@ -148,7 +148,6 @@
   }
   loadAgents();
 
-  // Auto-resize is handled inside CTF input listener below
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -184,21 +183,18 @@
     // !debug toggles the analytics panel without sending a message
     if (text === "!debug") {
       inputEl.value = "";
-      inputEl.style.height = "auto";
       toggleDebug();
       return;
     }
     // !autoupdate pulls latest code, installs deps, and restarts server
     if (text === "!autoupdate") {
       inputEl.value = "";
-      inputEl.style.height = "auto";
       triggerAutoupdate("Auto-update");
       return;
     }
     // !convergence runs the Lantern convergence loop + version check + auto-update
     if (text === "!convergence") {
       inputEl.value = "";
-      inputEl.style.height = "auto";
       triggerAutoupdate("Auto-update");
       const sysRow = document.createElement("div");
       sysRow.className = "msg-row agent";
@@ -243,7 +239,6 @@
     // !comet-leap shows COMET-LEAP plan status + auto-update
     if (text === "!comet-leap") {
       inputEl.value = "";
-      inputEl.style.height = "auto";
       triggerAutoupdate("Auto-update");
       const sysRow = document.createElement("div");
       sysRow.className = "msg-row agent";
@@ -259,7 +254,6 @@
       const cmdName = bangMatch[1].toLowerCase();
       if (!STREAMING_BANGS.includes(cmdName)) {
         inputEl.value = "";
-        inputEl.style.height = "auto";
         const errRow = document.createElement("div");
         errRow.className = "msg-row agent";
         errRow.innerHTML = `<div class="msg-label">System</div><div class="bubble" style="color:var(--danger);">Unsupported command: !${escapeHtml(cmdName)}</div>`;
@@ -271,7 +265,6 @@
     if (emptyState) emptyState.style.display = "none";
     appendUserBubble(text);
     inputEl.value = "";
-    inputEl.style.height = "auto";
     analytics.messagesSent++;
     analytics.lastAgent = agents.find((a) => a.id === agentSelect.value)?.name || agentSelect.value;
     analytics.record("send", text.slice(0, 40));
@@ -359,12 +352,6 @@
               }
               if (evt.type === "done" && !streamFinished) {
                 streamFinished = true;
-                // I/ server str/pped the [DOORS:] marker, rewrite bubble with clea  text
-                const dIfplayText = evt.cleanText || fullText;
-                if (evt.cleanText && evt.cleanText !== fullText) {
-                  bubble.textContent = evt.cleanText;
-                }
-                finis server stripped the [DOORS:]dispaayker, rewrite bubble with clean text
                 const displayText = evt.cleanText || fullText;
                 if (evt.cleanText && evt.cleanText !== fullText) {
                   bubble.textContent = evt.cleanText;
@@ -443,7 +430,11 @@
           inputEl.value = s;
           inputEl.dispatchEvent(new Event("input"));
           sendMessage();
-     
+        };
+        chips.appendChild(btn);
+      });
+      row.appendChild(chips);
+    }
 
     // ── Three Doors banner ──────────────────────────────────────────────────────
     if (Array.isArray(suggestions) && suggestions.length === 3) {
@@ -824,8 +815,6 @@
 
   // Auto-suggest CTF as you type
   inputEl.addEventListener("input", () => {
-    inputEl.style.height = "auto";
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + "px";
     const words = inputEl.value.split(/\s+/);
     const last = words[words.length - 1];
     if (last.length >= 3 && !ctfPaletteOpen) {
