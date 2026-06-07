@@ -107,3 +107,4 @@ data/provenance/
 # Auto-generated convergence evidence files
 manifests/evidence/convergence-*.json
 convergence-output.json
+data/pcsf/settings.pcsf.json
