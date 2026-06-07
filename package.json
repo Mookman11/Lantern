@@ -6,13 +6,22 @@
   "scripts": {
     "setup": "node scripts/ensure-rust.js && node scripts/build-csf-rust.js",
     "postinstall": "npm run setup",
-    "start": "node apps/lantern-garage/server.js",
-    "dev": "node apps/lantern-garage/server.js",
+    "start": "cross-env OLLAMA_FIRST=true OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=qwen2.5-coder node apps/lantern-garage/server.js",
+    "start:cloud": "node apps/lantern-garage/server.js",
+    "dev": "cross-env OLLAMA_FIRST=true OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=qwen2.5-coder node apps/lantern-garage/server.js",
     "convergance": "bash scripts/git-convergance-loop.sh foreground",
-    "setup:convergance": "bash scripts/setup-git-convergance-loop.sh"
+    "setup:convergance": "bash scripts/setup-git-convergance-loop.sh",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop lantern-os",
+    "pm2:logs": "pm2 logs lantern-os",
+    "pm2:save": "pm2 save",
+    "pm2:startup": "pm2 startup"
   },
   "engines": {
     "node": ">=20"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
 }
