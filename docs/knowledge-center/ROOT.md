@@ -21,6 +21,7 @@ Lantern OS has many surfaces, but the knowledge center should sort them by role,
 
 - Dream Journal / ORION.
 - Dream Chat.
+- HFF Dashboard — direct-linked peer surface at `/hff` and `/hff/index.html`.
 - 3 Doors / Three Doors Game.
 - Discord / Lantern Lounge.
 - Public portfolio case study.
@@ -52,6 +53,7 @@ This is the strongest engineering credential for portfolio and job-hunt usage.
 - Sparse symbolic matrices.
 - 3^12 tesseract address space.
 - Bayesian epistemology.
+- HFF Bayesian world model.
 - Free Energy / Active Inference.
 - Precision weighting.
 - Anti-entropy memory.
@@ -97,6 +99,7 @@ Manual service lane should precede speculative product scale.
 | Update | Status | Target |
 |---|---|---|
 | Added root index for all Lantern OS knowledge surfaces | draft | `docs/ROOT-INDEX.md` |
+| Added HFF dashboard direct-link surface | direct-linked | `/hff`, `apps/lantern-garage/public/hff/index.html` |
 | Added knowledge center root navigation | draft | `docs/knowledge-center/ROOT.md` |
 | Added portfolio pivot roadmap | draft | `docs/PORTFOLIO-PIVOT-ROADMAP.md` |
 | Added math/lore reality check | draft | `docs/MATH-LORE-REALITY-CHECK.md` |
