@@ -69,4 +69,61 @@ if [ "${conflict:-0}" -gt 0 ]; then
   exit 1
 fi
 
+# ── Slop scan: inspect staged code files ────────────────────────────────────
+slop_fail=0
+
+for file in $(git diff --cached --name-only); do
+  # Only scan source files
+  case "$file" in
+    *.js|*.ts|*.py|*.sh|*.mjs|*.cjs) ;;
+    *) continue ;;
+  esac
+
+  # Read staged content (not working tree)
+  content=$(git show ":$file" 2>/dev/null) || continue
+
+  # 1. Hardcoded secrets — pattern: assignment to a key/secret/token/password var
+  if echo "$content" | grep -iqE \
+    "(api_key|apikey|api_secret|secret_key|password|passwd|access_token|auth_token|private_key)\s*[=:]\s*['\"][a-zA-Z0-9/+_\-]{12,}['\"]"; then
+    echo "SLOP [secret]: possible hardcoded credential in $file"
+    echo "  Use environment variables or .env — never commit secrets."
+    slop_fail=1
+  fi
+
+  # 2. Debug pollution
+  if echo "$content" | grep -qE \
+    "(^|[^a-zA-Z])(console\.log\(|debugger;|pdb\.set_trace\(\)|breakpoint\(\)|import pdb)"; then
+    echo "SLOP [debug]: debug statement found in $file — remove before committing."
+    slop_fail=1
+  fi
+
+  # 3. SQL injection risk — string-concatenated query
+  if echo "$content" | grep -iqE \
+    "(SELECT|INSERT|UPDATE|DELETE).*\+\s*(req\.|params\.|query\.|body\.|args\.)"; then
+    echo "SLOP [sqli]: possible SQL string concatenation with user input in $file"
+    slop_fail=1
+  fi
+
+  # 4. eval() / shell injection
+  if echo "$content" | grep -qE \
+    "(^|[^a-zA-Z])(eval\(|exec\(|os\.system\(|subprocess\.call\([^,]*shell\s*=\s*True)"; then
+    echo "SLOP [exec]: unsafe eval/exec/shell call in $file — use safe alternatives."
+    slop_fail=1
+  fi
+done
+
+# 5. Oversized commit (> 600 added lines = likely mass-generated boilerplate)
+added=$(git diff --cached --numstat | awk '{sum += $1} END {print sum+0}')
+if [ "$added" -gt 600 ]; then
+  echo "SLOP [size]: $added lines added in one commit — split into atomic changes."
+  slop_fail=1
+fi
+
+if [ "$slop_fail" -gt 0 ]; then
+  echo ""
+  echo "Fix the issues above or bypass with: SKIP_MONOWORKSTREAM=1 git commit ..."
+  echo ""
+  exit 1
+fi
+
 exit 0
