@@ -27,8 +27,8 @@ def test_landing_page_is_clean_sales_page() -> None:
     assert "dream-chat.html" in html
     assert "patreon.com" in html
     assert "github.com" in html
-    # Feature table
-    assert "V1.0.0" in html
+    # Feature table still present (V1.0.0 label removed; table uses pill classes now)
+    assert "Quick capture" in html
     # No old inline journal UI
     assert 'id="entryForm"' not in html
     assert 'id="micBtn"' not in html
@@ -114,8 +114,8 @@ def test_dream_chat_fails_fast_without_provider() -> None:
 
 def test_pcsf_files_exist() -> None:
     pcsf_dir = ROOT / "data" / "pcsf"
-    required = ["narrator.pcsf.json", "provider.pcsf.json", "agent.pcsf.json",
-                "model.pcsf.json", "settings.pcsf.json", "health.pcsf.json"]
+    # provider.pcsf.json and health.pcsf.json were removed in cleanup commit c001f9f
+    required = ["narrator.pcsf.json", "agent.pcsf.json", "model.pcsf.json", "settings.pcsf.json"]
     for f in required:
         assert (pcsf_dir / f).exists(), f"Missing PCSF file: {f}"
 
