@@ -72,7 +72,7 @@ jobs:
 
           html_path = Path("surfaces/shareholder-index/index.html")
           index = html_path.read_text()
-          hrefs = re.findall(r'href=[\'"']([^\'"]+)[\'"']', index)
+          hrefs = re.findall(r'href="([^"]+)"', index) + re.findall(r"href='([^']+)'", index)
 
           missing = []
           for href in hrefs:
