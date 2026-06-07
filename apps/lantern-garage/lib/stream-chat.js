@@ -1,10 +1,13 @@
 const https = require("https");
 const http = require("http");
+const path = require("path");
 const { AGENT_PERSONAS, DREAM_DOORS, selectAgent, parseBangCommand, generateLocalReply } = require("./dream-chat");
 const { readRecentDreams, normalizeDreamerUser } = require("./dreamer-store");
 const { appendConversationEntry } = require("./conversation-store");
 const { getProviderState, recordProviderSuccess, recordProviderFailure } = require("./provider-cache");
 const { swarmOrchestrate } = require("./swarm-orchestrator");
+
+const repoRoot = path.resolve(__dirname, "../../../");
 
 const maxConversationTextLength = 4000;
 
