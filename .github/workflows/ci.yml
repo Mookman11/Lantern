@@ -18,6 +18,7 @@ permissions:
 env:
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   # ============================================================================
@@ -35,6 +36,21 @@ jobs:
           test -f AGENTS.md || (echo "AGENTS.md missing" && exit 1)
           test -f docs/CONVERGENCE-LOOP.md || (echo "docs/CONVERGENCE-LOOP.md missing" && exit 1)
           echo "All required top-level files present"
+
+      - name: Validate version sync (semver x.x.x)
+        run: |
+          python3 - << 'EOF'
+          import json, re, sys
+          pkg = json.load(open("package.json"))["version"]
+          ver = json.load(open("apps/lantern-garage/public/version.json"))["version"]
+          print(f"package.json: {pkg}")
+          print(f"version.json: {ver}")
+          if pkg != ver:
+              sys.exit(f"Version mismatch: package.json={pkg} vs version.json={ver}")
+          if not re.fullmatch(r"\d+\.\d+\.\d+", pkg):
+              sys.exit(f"Non-semver version: {pkg} (must be x.x.x)")
+          print(f"Version sync OK: {pkg}")
+          EOF
 
       - name: Check manifests
         run: |
@@ -56,7 +72,7 @@ jobs:
 
           html_path = Path("surfaces/shareholder-index/index.html")
           index = html_path.read_text()
-          hrefs = re.findall(r'href=["\']([^"\']+)["\']', index)
+          hrefs = re.findall(r'href=[\'"']([^\'"]+)[\'"']', index)
 
           missing = []
           for href in hrefs:

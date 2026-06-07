@@ -154,7 +154,7 @@ async function handleStreamChat(req, url, res) {
     ? (AGENT_PERSONAS.find((a) => a.id === requestedAgent) || selectAgent(message))
     : selectAgent(message);
 
-  // ── Keystone debug mode ───────────────────────────────────────────────
+  // ── Keystone debug mode ────────────────────────────────────────────────────────────────────────
   // When Keystone is selected, bypass persona/doors and talk raw to the model
   // about app dev, repo state, and convergence. Direct API access from the UX.
   const isKeystoneDebug = agent.id === "keystone" && mcpFlag;
@@ -310,6 +310,67 @@ async function handleStreamChat(req, url, res) {
   );
 
   let fullReply = "";
+
+  // Provider 0: Ollama-first bypass — when OLLAMA_FIRST=true, try local before any cloud provider
+  if (process.env.OLLAMA_FIRST === "true" && message && !requestedProvider) {
+    const ollamaBaseFirst = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+    const ollamaModelFirst = process.env.OLLAMA_MODEL || "llama3";
+    try {
+      const payload = JSON.stringify({
+        model: ollamaModelFirst,
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...history.map(h => ({ role: h.role, content: h.text })),
+          { role: "user", content: message },
+        ],
+      });
+      const ollamaUrl = new URL(ollamaBaseFirst);
+      const ollamaOpts = {
+        hostname: ollamaUrl.hostname,
+        port: ollamaUrl.port || 11434,
+        path: "/api/chat",
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) },
+      };
+      let ollamaOk = false;
+      await new Promise((resolve, reject) => {
+        const req2 = http.request(ollamaOpts, (upstream) => {
+          if (upstream.statusCode !== 200) { upstream.resume(); reject(new Error(`ollama_status_${upstream.statusCode}`)); return; }
+          ollamaOk = true;
+          let buf = "";
+          upstream.on("data", (chunk) => {
+            buf += chunk.toString();
+            const lines = buf.split("\n"); buf = lines.pop();
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const evt = JSON.parse(line);
+                const token = evt.message?.content || evt.response || "";
+                if (token) { fullReply += token; sendToken(token); }
+              } catch { /* skip */ }
+            }
+          });
+          upstream.on("end", () => resolve());
+          upstream.on("error", reject);
+        });
+        req2.on("error", reject);
+        req2.setTimeout(10000, () => { req2.destroy(); reject(new Error("ollama_connect_timeout")); });
+        req2.write(payload); req2.end();
+      });
+      if (ollamaOk && fullReply) {
+        const { cleanText: ollamaClean, suggestions: ollamaDoors } = doorsOrFallback(fullReply, isKeystoneDebug);
+        await appendConversationEntry({ recordedAt: new Date().toISOString(), surface: "dream-chat-stream", role: "lantern", text: ollamaClean.slice(0, maxConversationTextLength) }).catch(() => {});
+        recordProviderSuccess("ollama");
+        sendDone("ollama", { agent: agent.name, online: true, cleanText: ollamaClean, suggestions: ollamaDoors });
+        return;
+      }
+    } catch (err) {
+      recordProviderFailure("ollama", `ollama_first: ${err.message}`);
+      fullReply = "";
+      // Fall through to cloud providers silently
+    }
+  }
 
   // Provider 1: Gemini (streaming) — checked first for Auto mode
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
