@@ -421,7 +421,7 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
         const escape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
         const rows = [cols.join(","), ...entries.map(e => [
           escape(e.id), escape(e.timestamp), escape(e.kind), escape(e.text),
-          escape(e.lucidity), escape((e.emotions || []).join(";")klären),
+          escape(e.lucidity), escape((e.emotions || []).join(";"))
           escape((e.tags || []).join(";")), escape((e.symbols || []).join(";")), escape((e.ctf_glyphs || []).join(";"))
         ].join(","))];
         res.writeHead(200, { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="dream-journal-${new Date().toISOString().substring(0,10)}.csv"` });
