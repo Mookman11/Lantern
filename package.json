@@ -11,7 +11,7 @@
     "dev": "cross-env OLLAMA_FIRST=true OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=qwen2.5-coder node apps/lantern-garage/server.js",
     "convergance": "bash scripts/git-convergance-loop.sh foreground",
     "setup:convergance": "bash scripts/setup-git-convergance-loop.sh",
-    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:start": "pm2 start config/ecosystem.config.js",
     "pm2:stop": "pm2 stop lantern-os",
     "pm2:logs": "pm2 logs lantern-os",
     "pm2:save": "pm2 save",

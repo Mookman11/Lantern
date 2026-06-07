@@ -44,7 +44,7 @@ if ($pm2) {
     Write-Host "PM2 detected — saving process list and registering PM2 resurrect task."
 
     # Save current PM2 process list so 'pm2 resurrect' can restore it
-    & pm2 start "$RepoRoot\ecosystem.config.js" 2>$null
+    & pm2 start "$RepoRoot\config\ecosystem.config.js" 2>$null
     & pm2 save
 
     $pm2Path = $pm2.Source
@@ -54,7 +54,6 @@ if ($pm2) {
     Write-Host "Tip: 'npm install -g pm2' for crash-restart and log management."
 
     $nodePath = (Get-Command node -ErrorAction Stop).Source
-    $serverJs = Join-Path $RepoRoot 'apps\lantern-garage\server.js'
 
     # Wrapper batch that sets Ollama env vars then starts node
     $wrapperBat = Join-Path $RepoRoot 'scripts\lantern-autostart.bat'
