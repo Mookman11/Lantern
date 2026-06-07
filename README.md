@@ -96,7 +96,13 @@ Lantern personas provide different interaction modes over the same backend pipel
 
 ## Getting Started
 
-For the main local web surface:
+For the main local web surface (dev mode with auto-restart):
+
+```bash
+npm run dev --prefix apps/lantern-garage
+```
+
+Or for a one-shot start:
 
 ```bash
 npm start --prefix apps/lantern-garage

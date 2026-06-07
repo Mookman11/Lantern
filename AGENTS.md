@@ -107,25 +107,31 @@ Each file has: problem, proposed implementation with code sketch, files to chang
 
 ## Quick Start
 
-**Build & Test**
+**Dev server (default — auto-restarts on file save):**
 ```bash
-python -m pip install -r requirements.txt
-node apps/lantern-garage/server.js &       # start server (background)
-node tests/test_dream_journal_api.js       # 18/18 should pass
-node tests/test_dream_chat_multiturns.js   # 11/11 should pass
+npm run dev --prefix apps/lantern-garage    # port 4177, watch mode
 ```
 
-**Run Locally**
+**One-shot / production:**
 ```bash
-node apps/lantern-garage/server.js          # port 4177
-python src/mcp_server/server.py             # port 8771 (optional)
+npm start --prefix apps/lantern-garage      # port 4177
 ```
 
-**Orchestrator**
+**Full stack:**
 ```bash
-python src/convergence_io_engine.py health  # server health
-python src/convergence_io_engine.py loop    # 12-phase convergence check
+npm run dev --prefix apps/lantern-garage &  # web server
+python src/mcp_server/server.py &           # MCP server (optional, port 8771)
+python src/convergence_io_engine.py health  # confirm everything healthy
 ```
+
+**Tests (server must be running):**
+```bash
+node tests/test_dream_journal_api.js        # 18 API tests
+node tests/test_dream_chat_multiturns.js    # 11 multi-turn tests
+python -m pytest tests/ -q --tb=short       # Python unit tests
+```
+
+See [`QUICKSTART.md`](QUICKSTART.md) for the full operator-facing guide.
 
 ---
 
@@ -231,7 +237,9 @@ python -m pip install -r requirements.txt
 ### 2. Start the web server (required)
 
 ```bash
-node apps/lantern-garage/server.js
+npm run dev --prefix apps/lantern-garage    # dev mode — auto-restarts on file changes
+# or for one-shot:
+npm start --prefix apps/lantern-garage
 ```
 
 Opens on `http://127.0.0.1:4177`.
