@@ -23,13 +23,10 @@ let passed = 0;
 let failed = 0;
 
 function ok(label) {
-  console.log("  ✓", label);
   passed++;
 }
 
 function fail(label, reason) {
-  console.error("  ✗", label);
-  if (reason) console.error("    →", reason);
   failed++;
 }
 
@@ -54,7 +51,6 @@ function postJson(path, body, timeoutMs = 5000) {
 // ── Test 1: REST /api/dream/doors (Python ThreeDoorsEngine) ────────────────
 
 async function testDoorsRestEndpoint() {
-  console.log("\n── 1. REST /api/dream/doors (Python ThreeDoorsEngine) ──────────────────");
 
   // Start game
   let res;
@@ -118,13 +114,11 @@ async function testDoorsRestEndpoint() {
 // ── Test 2: SSE stream - !three-doors routing ──────────────────────────────
 
 async function testThreeDoorsStreamRouting() {
-  console.log("\n── 2. SSE stream — !three-doors routing ────────────────────────────────");
 
   // The full stream test below will verify the 200 response + done event in one pass.
 
   // Full stream test with generous timeout (handles Ollama slow-start or cloud fallback)
   const STREAM_TIMEOUT = 30000;
-  console.log(`  (waiting up to ${STREAM_TIMEOUT/1000}s for done event — accepts online or offline)`);
 
   const payload = JSON.stringify({ message: "!three-doors", history: [] });
   const result = await new Promise((resolve) => {
@@ -204,17 +198,13 @@ async function testThreeDoorsStreamRouting() {
 // ── Test 3: Done event has exactly 3 suggestions ───────────────────────────
 
 async function testDoneEventSuggestions(doneEvent) {
-  console.log("\n── 3. Done event suggestions contract ──────────────────────────────────");
 
   if (!doneEvent) {
-    console.log("  (skipped — no done event from stream test)");
     return;
   }
 
   const suggestions = doneEvent.suggestions || [];
   const online = doneEvent.online !== false;
-  console.log(`  Provider mode: ${online ? "online" : "offline (fallback)"}`);
-  if (doneEvent.agent) console.log(`  Agent: ${doneEvent.agent}${doneEvent.model ? " / " + doneEvent.model : ""}`);
 
   if (suggestions.length !== 3) {
     fail(`exactly 3 suggestions`, `got ${suggestions.length}: ${JSON.stringify(suggestions)}`);
@@ -230,7 +220,6 @@ async function testDoneEventSuggestions(doneEvent) {
 // ── Test 4: Image generation is non-blocking ──────────────────────────────
 
 async function testImageGenerationNonBlocking() {
-  console.log("\n── 4. Image generation — non-blocking ──────────────────────────────────");
 
   // /api/dream/doors/image should respond immediately (not block on SD)
   let res;
@@ -268,7 +257,6 @@ async function testImageGenerationNonBlocking() {
     ok(`image_prompt present (${imagePrompt.length} chars)`);
   } else {
     // prompt may be empty if game state lookup failed — soft warning
-    console.log("  ⚠ image_prompt empty (game state may not be persisted for test user)");
     passed++; // not a hard failure
   }
 }
@@ -276,16 +264,10 @@ async function testImageGenerationNonBlocking() {
 // ── Runner ─────────────────────────────────────────────────────────────────
 
 async function runAllTests() {
-  console.log("Three Doors Game — Integration Tests");
-  console.log("=====================================");
-
   await testDoorsRestEndpoint();
   const doneEvent = await testThreeDoorsStreamRouting();
   await testDoneEventSuggestions(doneEvent);
   await testImageGenerationNonBlocking();
-
-  console.log(`\n=====================================`);
-  console.log(`Results: ${passed} passed, ${failed} failed`);
 
   if (failed > 0) process.exit(1);
   else process.exit(0);
@@ -293,7 +275,6 @@ async function runAllTests() {
 
 if (require.main === module) {
   runAllTests().catch((e) => {
-    console.error("Unexpected error:", e.message);
     process.exit(1);
   });
 }
