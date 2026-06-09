@@ -134,9 +134,22 @@
   </div>
 </div>
 <script>
-(function(){const t=localStorage.getItem('lantern-theme');if(t){document.documentElement.setAttribute('data-theme',t);}})();
-function toggleTheme(){const h=document.documentElement,n=h.getAttribute('data-theme')==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('lantern-theme',n);document.getElementById('theme-toggle').textContent=n==='dark'?'🌙':'☀';}
-(function(){const t=localStorage.getItem('lantern-theme');if(t==='light')document.getElementById('theme-toggle').textContent='☀';})();
+(function(){
+  const t=localStorage.getItem('lantern-theme');
+  const prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark=t?t==='dark':prefersDark;
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
+  const btn=document.getElementById('theme-toggle');
+  if(btn)btn.textContent=isDark?'☀️':'🌙';
+})();
+function toggleTheme(){
+  const h=document.documentElement,isDark=h.getAttribute('data-theme')==='dark';
+  const n=isDark?'light':'dark';
+  h.setAttribute('data-theme',n);
+  localStorage.setItem('lantern-theme',n);
+  const btn=document.getElementById('theme-toggle');
+  if(btn)btn.textContent=n==='dark'?'☀️':'🌙';
+}
 </script>
 </body>
 </html>
