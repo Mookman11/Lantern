@@ -13,6 +13,7 @@
 //! let bytes = archive.write()?;
 //! ```
 
+pub mod claims_packet;
 pub mod compress;
 pub mod convergence;
 pub mod dictionary;
