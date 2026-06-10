@@ -7,91 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/site.css">
   <link rel="stylesheet" href="/css/dream-chat.css">
-  <title>Dream Journal</title>
+  <title>Journal</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; overflow: hidden; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 15px;
-    }
-    :root {
-      --bg: #0a0e17;
-      --surface: #111827;
-      --surface2: #1a2332;
-      --border: #1f2937;
-      --text: #f3f4f6;
-      --muted: #9ca3af;
-      --accent: #06b6d4;
-      --accent-hover: #0891b2;
-    }
-    [data-theme="light"] {
-      --bg: #ffffff;
-      --surface: #f8f9fa;
-      --surface2: #f1f3f5;
-      --border: #e5e7eb;
-      --text: #111827;
-      --muted: #6b7280;
-      --accent: #0ea5e9;
-      --accent-hover: #06b6d4;
-    }
-
-    /* ── Site nav (matches index.html) ── */
-    .site-nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 20px;
-      height: 52px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 1px 0 var(--border);
-      flex-shrink: 0;
-    }
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-      text-decoration: none;
-      letter-spacing: -0.3px;
-      margin-right: 8px;
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      flex: 1;
-    }
-    .nav-links a {
-      font-size: 13px;
-      color: var(--muted);
-      text-decoration: none;
-      padding: 6px 10px;
-      border-radius: 7px;
-      transition: color 0.15s, background 0.15s;
-      white-space: nowrap;
-    }
-    .nav-links a:hover { color: var(--text); background: var(--surface2); }
-    .nav-links a.active { color: var(--accent); font-weight: 600; }
-    @media (max-width: 580px) { .nav-links { display: none; } }
-    .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .nav-btn {
-      display: flex; align-items: center; justify-content: center;
-      width: 34px; height: 34px; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--surface2);
-      color: var(--muted); cursor: pointer; font-size: 15px;
-      transition: all 0.15s;
-    }
-    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
     #header-status { font-size: 11px; color: var(--muted); margin-left: 6px; }
 
     /* Main container */
@@ -421,9 +340,9 @@
       Lantern OS
     </a>
     <div class="nav-links">
-      <a href="/dream-chat.html" class="active">Dream Journal</a>
-      <a href="/three-doors-game.html">Three Doors</a>
-      <a href="/flourishing">World Status</a>
+      <a href="/dream-chat.html" class="active">Journal</a>
+      <a href="/three-doors-game.html">Explore</a>
+      <a href="/flourishing">Dashboard</a>
       <a href="/knowledgecenter.html">Help</a>
     </div>
     <div class="nav-actions">
@@ -436,14 +355,14 @@
   <!-- Chat area -->
   <div class="chat-container" id="messages">
     <div class="empty-state" id="empty-state">
-      <div class="empty-icon" style="opacity:0.9"><img src="/mandala.svg" alt="" aria-hidden="true" style="width:64px;height:64px;display:block"></div>
+      <div class="empty-icon" style="opacity:0.5;font-size:48px">📝</div>
       <h2>What's on your mind?</h2>
-      <p>Write a dream, a reflection, or anything you want to explore. Your journal stays private on your device.</p>
+      <p>Write a reflection, ask a question, or just think out loud. Everything stays private on your device.</p>
       <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;margin-top:8px">
-        <button onclick="fillPrompt('Last night I dreamed that ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">💭 Record a dream…</button>
-        <button onclick="fillPrompt('I keep having a recurring dream about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔄 Explore a recurring dream…</button>
-        <button onclick="fillPrompt('What does it mean when you dream about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">✨ Ask about a dream symbol…</button>
-        <button onclick="fillAndSend('!three-doors')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='#a78bfa'" onmouseout="this.style.borderColor='var(--border)'" title="Play Three Doors">🚪 Play Three Doors game…</button>
+        <button onclick="fillPrompt('Today I noticed that ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">� Record a thought…</button>
+        <button onclick="fillPrompt('I keep thinking about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔄 Explore a recurring thought…</button>
+        <button onclick="fillPrompt('What do you know about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">✨ Ask about a topic…</button>
+        <button onclick="fillAndSend('!explore')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='#a78bfa'" onmouseout="this.style.borderColor='var(--border)'" title="Start interactive story">🚪 Start an interactive story…</button>
       </div>
     </div>
   </div>
@@ -451,7 +370,7 @@
   <!-- Input area -->
   <div class="input-container">
     <div class="input-wrapper">
-      <textarea id="input" class="input-field" placeholder="Write your dream, ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+      <textarea id="input" class="input-field" placeholder="Write something, ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
       <button class="send-button" id="send-btn" onclick="sendMessage()" title="Send">↑</button>
     </div>
   </div>
@@ -533,49 +452,28 @@
 </div>
 
 <script src="js/dream-chat.js"></script>
+<script src="/js/theme-toggle.js"></script>
 <script>
-  // Modern theme toggle with global persistence
-  function toggleTheme() {
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-  }
-  function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('lantern-theme', theme);
-    // Persist to server via API if available (global cross-device setting)
-    fetch('/api/ui/theme', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme })
-    }).catch(() => {}); // silent fail if API not available
-    updateThemeIcon();
-  }
-  function updateThemeIcon() {
-    const btn = document.getElementById('theme-toggle');
-    btn.textContent = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? '☀️' : '🌙';
-  }
-  // Initialize theme from localStorage or system preference
-  function initTheme() {
-    const saved = localStorage.getItem('lantern-theme');
-    if (saved) {
-      document.documentElement.setAttribute('data-theme', saved);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem('lantern-theme', 'light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('lantern-theme', 'dark');
-    }
-    updateThemeIcon();
-  }
-  initTheme();
-
   // ── Modal controls ─────────────────────────────────────────────────
   function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
   function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-  function openLogDream() { alert('Dream logging coming soon'); closeSettings(); }
+  function openLogDream() { alert('Log entry coming soon'); closeSettings(); }
+
+  // ── Cube delta writer ────────────────────────────────────────────
+  async function writeCubeDelta(eventType, symbols, payloadRef) {
+    try {
+      await fetch('/api/cubes/alex/delta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_surface: 'journal',
+          event_type: eventType,
+          symbols: symbols || [],
+          payload_ref: payloadRef || '',
+        }),
+      });
+    } catch (e) { /* silent — cube is best-effort */ }
+  }
   function saveKey() {}
 
   // ── Conversation state ─────────────────────────────────────────────
@@ -584,10 +482,10 @@
 
   // Fallback messages — shown ONLY when all providers fail (never as a normal reply)
   const FALLBACKS = [
-    "The lantern flickers. No model responded — is Ollama running? (ollama serve)",
-    "Dream interpreter offline. Add an API key in Settings, or start your local models.",
-    "All paths are quiet right now. Try again in a moment, or check Settings.",
-    "The thread went dark. Ollama may be starting up — give it a moment and retry.",
+    "No AI model responded. Is Ollama running? Run: ollama serve",
+    "All providers offline. Add an API key in Settings, or start your local models.",
+    "Connection quiet. Try again in a moment, or check Settings.",
+    "Local model may be starting up — give it a moment and retry.",
     "No provider answered. Check Settings for API keys, or run: ollama pull lantern-csf-dream",
   ];
 
@@ -653,6 +551,7 @@
     input.value = '';
     input.style.height = 'auto';
     history.push({ role: 'user', text });
+    writeCubeDelta('chat_message', [], 'conversation:' + Date.now());
 
     const { msg, bubble, cursor } = createAgentBubble(false);
     const container = document.getElementById('messages');
