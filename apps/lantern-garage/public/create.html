@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06b6d4">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/site.css">
+  <title>Content Creator — Lantern OS</title>
+  <style>
+    .create-page { max-width: 680px; margin: 0 auto; padding: 32px 20px 64px; }
+    .create-page h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+    .create-page .page-sub { color: var(--muted); font-size: .9rem; margin-bottom: 32px; }
+
+    .create-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; }
+
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+    .field input[type="text"],
+    .field textarea,
+    .field select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: .95rem;
+      padding: 10px 12px;
+      transition: border-color .15s;
+    }
+    .field input[type="text"]:focus,
+    .field textarea:focus,
+    .field select:focus { outline: none; border-color: var(--accent); }
+    .field textarea { resize: vertical; min-height: 110px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
+
+    .kind-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .kind-btn {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: .85rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .kind-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .kind-btn.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+    .tag-input-row { display: flex; gap: 8px; }
+    .tag-input-row input { flex: 1; }
+    .tag-input-row button {
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: .9rem;
+    }
+    .tag-input-row button:hover { background: var(--border); }
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 0; }
+    .tag-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--accent-dim); color: var(--accent);
+      border-radius: 12px; padding: 3px 10px; font-size: .8rem;
+    }
+    .tag-chip button { background: none; border: none; color: inherit; cursor: pointer; font-size: .9rem; padding: 0; line-height: 1; }
+
+    .form-actions { display: flex; gap: 12px; margin-top: 28px; }
+    .btn-save {
+      flex: 1;
+      padding: 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: var(--accent-hover); }
+    .btn-save:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-cancel {
+      padding: 12px 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: var(--border); }
+
+    .notice {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: .9rem;
+      margin-bottom: 20px;
+    }
+    .notice.ok { display: block; background: rgba(16,185,129,.1); color: var(--green); border: 1px solid rgba(16,185,129,.25); }
+    .notice.err { display: block; background: rgba(239,68,68,.08); color: var(--danger); border: 1px solid rgba(239,68,68,.2); }
+
+    .recent-block { margin-top: 40px; }
+    .recent-block h2 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .recent-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .recent-item-header { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .recent-item-kind { font-size: .75rem; font-weight: 600; text-transform: uppercase; color: var(--accent); }
+    .recent-item-ts { font-size: .75rem; color: var(--muted); margin-left: auto; }
+    .recent-item-name { font-weight: 600; margin-bottom: 2px; }
+    .recent-item-text { font-size: .875rem; color: var(--muted); }
+    .recent-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .recent-item-tag { font-size: .75rem; background: var(--accent-dim); color: var(--accent); padding: 2px 8px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a class="nav-brand" href="/">
+    <span class="brand-icon"><span class="mandala-icon spin-slow"></span></span>
+    Lantern OS
+  </a>
+  <div class="nav-links">
+    <a href="/dream-chat.html">Journal</a>
+    <a href="/">Home</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="create-page">
+
+    <h1>🎬 Content Creator</h1>
+    <p class="page-sub">Add entries to your local notebook — video clips, notes, projects. Saved privately on this machine.</p>
+
+    <div id="notice" class="notice"></div>
+
+    <div class="create-form">
+      <!-- Kind selector -->
+      <div class="field">
+        <label>Type</label>
+        <div class="kind-grid" id="kind-grid">
+          <button type="button" class="kind-btn selected" data-kind="video">🎥 Video</button>
+          <button type="button" class="kind-btn" data-kind="note">📝 Note</button>
+          <button type="button" class="kind-btn" data-kind="project">📁 Project</button>
+          <button type="button" class="kind-btn" data-kind="highlight">⭐ Highlight</button>
+          <button type="button" class="kind-btn" data-kind="metadata">🏷 Metadata</button>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <!-- Title -->
+        <div class="field">
+          <label for="f-name">Title</label>
+          <input type="text" id="f-name" placeholder="e.g. Gaming Clip — Nov 7" maxlength="120">
+        </div>
+
+        <!-- Project group -->
+        <div class="field">
+          <label for="f-project">Project / Group</label>
+          <input type="text" id="f-project" placeholder="e.g. Gaming Clips" maxlength="80">
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="field">
+        <label for="f-text">Description / Notes</label>
+        <textarea id="f-text" placeholder="What's in this clip? Any context, notes, or metadata edits…" maxlength="2000"></textarea>
+      </div>
+
+      <!-- Tags -->
+      <div class="field">
+        <label>Tags</label>
+        <div class="tag-input-row">
+          <input type="text" id="f-tag-input" placeholder="Add a tag…" maxlength="40">
+          <button type="button" id="add-tag-btn">Add</button>
+        </div>
+        <div class="tag-chips" id="tag-chips"></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" onclick="window.location='/'">Cancel</button>
+        <button type="button" class="btn-save" id="save-btn">Save Entry</button>
+      </div>
+    </div>
+
+    <!-- Recent entries from this notebook -->
+    <div class="recent-block">
+      <h2>Recent entries</h2>
+      <div id="recent-list"><span style="color:var(--muted);font-size:.875rem">Loading…</span></div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span class="footer-brand"><span class="mandala-icon spin-slow" aria-hidden="true"></span> Lantern OS</span>
+    <span class="sep">·</span>
+    <a href="/">Home</a>
+    <a href="/dream-chat.html">Journal</a>
+  </div>
+</footer>
+
+<script src="/js/theme-toggle.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle && window.toggleTheme) themeToggle.addEventListener('click', toggleTheme);
+});
+
+(function() {
+  let selectedKind = 'video';
+  const tags = [];
+
+  // Kind selector
+  document.getElementById('kind-grid').addEventListener('click', e => {
+    const btn = e.target.closest('.kind-btn');
+    if (!btn) return;
+    document.querySelectorAll('.kind-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedKind = btn.dataset.kind;
+  });
+
+  // Tag management
+  function renderTags() {
+    const container = document.getElementById('tag-chips');
+    container.innerHTML = tags.map((t, i) =>
+      `<span class="tag-chip">${t}<button onclick="removeTag(${i})" title="Remove">×</button></span>`
+    ).join('');
+  }
+  window.removeTag = function(i) { tags.splice(i, 1); renderTags(); };
+
+  function addTag() {
+    const input = document.getElementById('f-tag-input');
+    const val = input.value.trim().toLowerCase().replace(/[^a-z0-9-_ ]/g, '').slice(0, 40);
+    if (val && !tags.includes(val) && tags.length < 10) { tags.push(val); renderTags(); }
+    input.value = '';
+  }
+  document.getElementById('add-tag-btn').addEventListener('click', addTag);
+  document.getElementById('f-tag-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } });
+
+  // Notice helper
+  function showNotice(msg, type) {
+    const el = document.getElementById('notice');
+    el.textContent = msg;
+    el.className = 'notice ' + type;
+    if (type === 'ok') setTimeout(() => { el.className = 'notice'; }, 4000);
+  }
+
+  // Save
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const name = document.getElementById('f-name').value.trim();
+    const text = document.getElementById('f-text').value.trim();
+    const project = document.getElementById('f-project').value.trim();
+
+    if (!name && !text) { showNotice('Add a title or description before saving.', 'err'); return; }
+
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const body = {
+      user: 'dreamer',
+      kind: selectedKind,
+      name: name || text.slice(0, 80),
+      text: [text, project ? `Project: ${project}` : ''].filter(Boolean).join('\n').trim(),
+      tags,
+    };
+
+    try {
+      const res = await fetch('/api/dreamer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || res.statusText);
+
+      showNotice('Saved — entry added to your notebook.', 'ok');
+      document.getElementById('f-name').value = '';
+      document.getElementById('f-text').value = '';
+      document.getElementById('f-project').value = '';
+      tags.length = 0;
+      renderTags();
+      loadRecent();
+    } catch (err) {
+      showNotice('Save failed: ' + err.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Entry';
+    }
+  });
+
+  // Load recent entries
+  async function loadRecent() {
+    const list = document.getElementById('recent-list');
+    try {
+      const res = await fetch('/api/dreamer?user=dreamer', { cache: 'no-store' });
+      if (!res.ok) throw new Error('server error');
+      const data = await res.json();
+      const entries = (data.entries || []).slice(-10).reverse();
+      if (!entries.length) { list.innerHTML = '<span style="color:var(--muted);font-size:.875rem">No entries yet.</span>'; return; }
+      const fmtDate = iso => { try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return iso; } };
+      list.innerHTML = entries.map(e => `
+        <div class="recent-item">
+          <div class="recent-item-header">
+            <span class="recent-item-kind">${e.kind || 'note'}</span>
+            <span class="recent-item-ts">${fmtDate(e.recordedAt)}</span>
+          </div>
+          ${e.name ? `<div class="recent-item-name">${e.name}</div>` : ''}
+          ${e.text ? `<div class="recent-item-text">${e.text.slice(0, 160)}${e.text.length > 160 ? '…' : ''}</div>` : ''}
+          ${e.tags?.length ? `<div class="recent-item-tags">${e.tags.map(t => `<span class="recent-item-tag">${t}</span>`).join('')}</div>` : ''}
+        </div>
+      `).join('');
+    } catch {
+      list.innerHTML = '<span style="color:var(--muted);font-size:.875rem">Could not load entries — is the server running?</span>';
+    }
+  }
+
+  loadRecent();
+})();
+</script>
+</body>
+</html>

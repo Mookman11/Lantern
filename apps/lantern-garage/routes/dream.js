@@ -18,6 +18,7 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
     readRecentDreams, dreamChatReply, appendConversationEntry,
     unifiedAgentGreet, unifiedAgentHealth, unifiedAgentInspect,
     handleStreamChat } = deps;
+  const { handleConvergenceCommand, selectAgent } = require("../lib/dream-chat");
 
   // ── CSF search endpoint ───────────────────────────────────────────────
   if (url.pathname === "/api/csf/search" && req.method === "GET") {
@@ -113,7 +114,13 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       if (!fs.existsSync(dreamDir)) fs.mkdirSync(dreamDir, { recursive: true });
       const monthFile = path.join(dreamDir, `dreams_${new Date().toISOString().substring(0, 7)}.jsonl`);
       await appendJsonlQueued(monthFile, entry);
-      
+
+      // CSF delta ingest — non-blocking, non-fatal
+      try {
+        const { ingestEntry: csfIngest } = require("../lib/csf-delta-store");
+        setImmediate(() => { try { csfIngest(entry); } catch {} });
+      } catch {}
+
       // Dream Journal enrichment using Convergance OS models
       const enrichment = await enrichDreamEntry(entry);
       entry.models = enrichment.models;
@@ -172,7 +179,19 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       const message = String(body.message || "").slice(0, maxDreamerTextLength);
       const recentDreams = readRecentDreams(5);
       const provStart = Date.now();
-      const result = await dreamChatReply(message, recentDreams, body.agent || "", body.provider || "");
+
+      // Check for !convergence command
+      let result;
+      if (message.toLowerCase().trim().startsWith("!convergence")) {
+        const requestedAgent = body.agent || "";
+        const agent = requestedAgent
+          ? require("../lib/dream-chat").AGENT_PERSONAS.find(a => a.id === requestedAgent) || selectAgent(message)
+          : selectAgent(message);
+        result = await handleConvergenceCommand(recentDreams, agent);
+      } else {
+        result = await dreamChatReply(message, recentDreams, body.agent || "", body.provider || "");
+      }
+
       const provLatency = Date.now() - provStart;
       try {
         await appendConversationEntry({ recordedAt: new Date().toISOString(), surface: "dream-journal", role: "operator", text: message.slice(0, maxConversationTextLength) });
@@ -189,10 +208,29 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
           latencyMs: provLatency,
           status: result.reply ? "ok" : (result.error ? "error" : "offline"),
           errorMsg: result.error || "",
-          metadata: { source: result.source || "unknown", threeDoors: !!result.threeDoors },
+          metadata: { source: result.source || "unknown", threeDoors: !!result.threeDoors, isConvergence: result.source === "convergence" },
         });
       } catch { /* provenance non-critical */ }
       if (!result.reply) { sendJson(res, { error: result.error || "no_provider_configured", agent: result.agent, online: false, help: result.help || "", suggestions: result.suggestions || [] }, 503); return true; }
+      // ClaimsPacket — non-blocking, non-fatal
+      try {
+        const claimPacket = {
+          packet_id: `cp-${Date.now().toString(36)}-${Math.random().toString(36).substr(2,5)}`,
+          timestamp_ms: Date.now(),
+          node_id: "local-node",
+          action: "dream-chat",
+          agent: result.agent || "unknown",
+          provider: result.source || body.provider || "auto",
+          input_hash: Buffer.from(message.slice(0,64)).toString("base64"),
+          output_length: String(result.reply || "").length,
+          latency_ms: provLatency,
+          online: !!result.online,
+        };
+        const claimDir = path.join(repoRoot, "data", "claim-packets");
+        if (!fs.existsSync(claimDir)) fs.mkdirSync(claimDir, { recursive: true });
+        const claimFile = path.join(claimDir, `claim-packets.jsonl`);
+        setImmediate(() => { try { fs.appendFileSync(claimFile, JSON.stringify(claimPacket) + "\n"); } catch {} });
+      } catch { /* non-fatal */ }
       sendJson(res, { ...result, generatedAt: new Date().toISOString() });
     } catch (error) { sendJson(res, { error: error.message, online: false }); }
     return true;
@@ -245,6 +283,7 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
       const userId = String(body.userId || "web-anon").slice(0, 256);
       const action = String(body.action || "start");
       const choice = String(body.choice || "");
+      const agent = String(body.agent || "").slice(0, 32);
 
       const { spawn } = require("child_process");
       const py = process.platform === "win32" ? "python" : "python3";
@@ -253,6 +292,7 @@ module.exports = async function dreamRoutes(req, res, url, deps) {
 from three_doors_engine import ThreeDoorsEngine
 req = json.loads(sys.stdin.read())
 e = ThreeDoorsEngine(req['userId'])
+e.agent = req.get('agent', '')
 result = e.to_api_response()
 if req['action'] in ['start','reset']:
     result = e.to_api_response(e.reset() if req['action']=='reset' else e.start_game())
@@ -271,7 +311,7 @@ print(json.dumps(result))`;
           else resolve(out.trim());
         });
         proc.on("error", reject);
-        proc.stdin.write(JSON.stringify({ userId, action, choice }));
+        proc.stdin.write(JSON.stringify({ userId, action, choice, agent }));
         proc.stdin.end();
       });
 
@@ -289,7 +329,26 @@ print(json.dumps(result))`;
       if (!body || typeof body !== "object" || Array.isArray(body)) body = {};
       const userId = String(body.userId || "web-anon").slice(0, 256);
       const prompt = String(body.prompt || "").trim();
-      
+      const sceneKey = String(body.scene_key || "").replace(/[^a-z0-9-]/gi, "").slice(0, 64);
+      const loopCount = Math.max(0, parseInt(body.loop_count, 10) || 0);
+      const agentName = String(body.agent || "").slice(0, 32);
+
+      // Contextualized cache: {scene_key}-{loop_count}-{agent_hash}.png
+      const crypto = require("crypto");
+      const agentHash = crypto.createHash("sha1").update(agentName || "none").digest("hex").slice(0, 8);
+      const cacheDir = path.join(repoRoot, "apps", "lantern-garage", "public", "data", "images", "three-doors", "cache");
+      const cacheName = sceneKey ? `${sceneKey}-${loopCount}-${agentHash}.png` : "";
+      const cachePath = cacheName ? path.join(cacheDir, cacheName) : "";
+      if (cachePath && fs.existsSync(cachePath)) {
+        sendJson(res, {
+          image_available: true,
+          image_url: `data/images/three-doors/cache/${cacheName}`,
+          cached: true,
+          generatedAt: new Date().toISOString(),
+        });
+        return true;
+      }
+
       if (!prompt) {
         // Get prompt from game state if not provided
         const { spawn } = require("child_process");
@@ -325,6 +384,20 @@ print(e.sd_prompt_for_state())`;
       });
 
       if (!sdReachable) {
+        // Fallback: generic pre-rendered scene image if one exists
+        const genericPath = sceneKey
+          ? path.join(repoRoot, "apps", "lantern-garage", "public", "data", "images", "three-doors", `${sceneKey}.png`)
+          : "";
+        if (genericPath && fs.existsSync(genericPath)) {
+          sendJson(res, {
+            image_available: true,
+            image_url: `data/images/three-doors/${sceneKey}.png`,
+            cached: true,
+            fallback: "generic",
+            generatedAt: new Date().toISOString(),
+          });
+          return true;
+        }
         sendJson(res, {
           image_available: false,
           image_prompt: body.prompt || "",
@@ -366,10 +439,19 @@ print(e.sd_prompt_for_state())`;
         reqSD.end();
       });
 
+      // Persist into the contextualized cache for replay
+      if (cachePath && imageResult.image) {
+        try {
+          fs.mkdirSync(cacheDir, { recursive: true });
+          fs.writeFileSync(cachePath, Buffer.from(imageResult.image, "base64"));
+        } catch { /* cache write is best-effort */ }
+      }
+
       sendJson(res, {
         image_available: true,
         image: imageResult.image,
         image_prompt: imageResult.prompt || body.prompt,
+        image_url: cacheName ? `data/images/three-doors/cache/${cacheName}` : undefined,
         generatedAt: new Date().toISOString(),
       });
       return true;

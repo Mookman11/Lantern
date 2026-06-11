@@ -7,99 +7,26 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/site.css">
   <link rel="stylesheet" href="/css/dream-chat.css">
-  <title>Dream Journal</title>
+  <title>Journal</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; overflow: hidden; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 15px;
-    }
-    :root {
-      --bg: #0a0e17;
-      --surface: #111827;
-      --surface2: #1a2332;
-      --border: #1f2937;
-      --text: #f3f4f6;
-      --muted: #9ca3af;
-      --accent: #06b6d4;
-      --accent-hover: #0891b2;
-    }
-    [data-theme="light"] {
-      --bg: #ffffff;
-      --surface: #f8f9fa;
-      --surface2: #f1f3f5;
-      --border: #e5e7eb;
-      --text: #111827;
-      --muted: #6b7280;
-      --accent: #0ea5e9;
-      --accent-hover: #06b6d4;
-    }
-
-    /* ── Site nav (matches index.html) ── */
-    .site-nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0 20px;
-      height: 52px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 1px 0 var(--border);
-      flex-shrink: 0;
-    }
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text);
-      text-decoration: none;
-      letter-spacing: -0.3px;
-      margin-right: 8px;
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      flex: 1;
-    }
-    .nav-links a {
-      font-size: 13px;
-      color: var(--muted);
-      text-decoration: none;
-      padding: 6px 10px;
-      border-radius: 7px;
-      transition: color 0.15s, background 0.15s;
-      white-space: nowrap;
-    }
-    .nav-links a:hover { color: var(--text); background: var(--surface2); }
-    .nav-links a.active { color: var(--accent); font-weight: 600; }
-    @media (max-width: 580px) { .nav-links { display: none; } }
-    .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .nav-btn {
-      display: flex; align-items: center; justify-content: center;
-      width: 34px; height: 34px; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--surface2);
-      color: var(--muted); cursor: pointer; font-size: 15px;
-      transition: all 0.15s;
-    }
-    .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
     #header-status { font-size: 11px; color: var(--muted); margin-left: 6px; }
 
     /* Main container */
     .app {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       height: 100vh;
       width: 100%;
+      overflow: hidden;
+    }
+    .app-main {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 0;
+      min-width: 0;
+      overflow: hidden;
     }
 
     /* Messages area - clean and spacious */
@@ -396,6 +323,54 @@
     .tts-word { border-radius: 2px; transition: background 0.08s; }
     .tts-active { background: rgba(255, 220, 50, 0.22); }
 
+    /* Connector sidecar */
+    .connector-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .connector-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.15s;
+    }
+    .connector-card:hover { border-color: var(--accent); }
+    .connector-card-icon { font-size: 20px; width: 28px; text-align: center; }
+    .connector-card-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .connector-card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+    .connector-card-meta { font-size: 11px; color: var(--muted); }
+    .connector-card-status {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .connector-card-status.ok { color: #34d399; border-color: #34d39933; background: #34d39911; }
+    .connector-card-status.err { color: var(--accent); border-color: var(--accent)33; background: var(--accent)11; }
+    .connector-card-status.pending { color: #fbbf24; border-color: #fbbf2433; background: #fbbf2411; }
+    .connector-btn {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .connector-btn:hover { border-color: var(--accent); color: var(--text); }
+    .connector-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .connector-btn.primary:hover { background: var(--accent-hover); }
+
     /* Message footer: source · latency · turn */
     .msg-footer {
       font-size: 0.67rem;
@@ -414,6 +389,7 @@
 </head>
 <body>
 <div class="app">
+  <div class="app-main">
   <!-- Header -->
   <nav class="site-nav">
     <a class="nav-brand" href="/">
@@ -421,13 +397,14 @@
       Lantern OS
     </a>
     <div class="nav-links">
-      <a href="/dream-chat.html" class="active">Dream Journal</a>
-      <a href="/three-doors-game.html">Three Doors</a>
-      <a href="/flourishing">World Status</a>
+      <a href="/dream-chat.html" class="active">Journal</a>
+      <a href="/three-doors-game.html">Explore</a>
+      <a href="/flourishing">Dashboard</a>
       <a href="/knowledgecenter.html">Help</a>
     </div>
     <div class="nav-actions">
       <span id="header-status" style="display:none">· connecting…</span>
+      <button class="nav-btn observer-toggle" id="observer-toggle-btn" onclick="toggleObserver()" title="Observer panel">◈</button>
       <button class="nav-btn" id="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
       <button class="nav-btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     </div>
@@ -436,14 +413,14 @@
   <!-- Chat area -->
   <div class="chat-container" id="messages">
     <div class="empty-state" id="empty-state">
-      <div class="empty-icon" style="opacity:0.9"><img src="/mandala.svg" alt="" aria-hidden="true" style="width:64px;height:64px;display:block"></div>
+      <div class="empty-icon" style="opacity:0.5;font-size:48px">📝</div>
       <h2>What's on your mind?</h2>
-      <p>Write a dream, a reflection, or anything you want to explore. Your journal stays private on your device.</p>
+      <p>Write a reflection, ask a question, or just think out loud. Everything stays private on your device.</p>
       <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;margin-top:8px">
-        <button onclick="fillPrompt('Last night I dreamed that ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">💭 Record a dream…</button>
-        <button onclick="fillPrompt('I keep having a recurring dream about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔄 Explore a recurring dream…</button>
-        <button onclick="fillPrompt('What does it mean when you dream about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">✨ Ask about a dream symbol…</button>
-        <button onclick="fillAndSend('!three-doors')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='#a78bfa'" onmouseout="this.style.borderColor='var(--border)'" title="Play Three Doors">🚪 Play Three Doors game…</button>
+        <button onclick="fillPrompt('Today I noticed that ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">� Record a thought…</button>
+        <button onclick="fillPrompt('I keep thinking about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔄 Explore a recurring thought…</button>
+        <button onclick="fillPrompt('What do you know about ')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">✨ Ask about a topic…</button>
+        <button onclick="fillAndSend('!explore')" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:var(--text);cursor:pointer;text-align:left;font-size:13px;transition:border-color 0.15s;font-family:inherit" onmouseover="this.style.borderColor='#a78bfa'" onmouseout="this.style.borderColor='var(--border)'" title="Start interactive story">🚪 Start an interactive story…</button>
       </div>
     </div>
   </div>
@@ -451,10 +428,43 @@
   <!-- Input area -->
   <div class="input-container">
     <div class="input-wrapper">
-      <textarea id="input" class="input-field" placeholder="Write your dream, ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+      <textarea id="input" class="input-field" placeholder="Write something, ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
       <button class="send-button" id="send-btn" onclick="sendMessage()" title="Send">↑</button>
     </div>
   </div>
+  </div><!-- /.app-main -->
+
+  <!-- Observer side panel -->
+  <aside class="observer-panel collapsed" id="observer-panel">
+    <div class="observer-panel-header">
+      <span class="observer-panel-title">◈ Observer</span>
+      <button class="observer-panel-close" onclick="toggleObserver()" title="Close">×</button>
+    </div>
+    <div class="observer-panel-body">
+      <div>
+        <div class="obs-section-title">Mood Arc</div>
+        <div class="obs-value" id="obs-mood-arc">—</div>
+        <div class="obs-arc-bar"><div class="obs-arc-fill" id="obs-mood-fill" style="width:50%"></div></div>
+      </div>
+      <div>
+        <div class="obs-section-title">Recurring Symbols</div>
+        <div class="obs-symbol-list" id="obs-symbols">—</div>
+      </div>
+      <div>
+        <div class="obs-section-title">Last Delta</div>
+        <div class="obs-value" id="obs-last-delta">—</div>
+      </div>
+      <div>
+        <div class="obs-section-title">Convergence</div>
+        <div class="obs-value" id="obs-convergence">—</div>
+        <div class="obs-arc-bar"><div class="obs-arc-fill" id="obs-conv-fill" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div class="obs-section-title">Dilation Ratio</div>
+        <div class="obs-value" id="obs-dilation">1.0×</div>
+      </div>
+    </div>
+  </aside>
 </div>
 
 <!-- Settings modal -->
@@ -487,6 +497,7 @@
           </div>
         </div>
         <input type="password" id="key-claude" class="form-input" placeholder="ANTHROPIC_API_KEY" onchange="saveKey('claude','ANTHROPIC_API_KEY','key-claude')">
+        <a href="https://console.anthropic.com" target="_blank" style="font-size:0.75rem;color:var(--muted)">Get key →</a>
       </div>
 
       <div class="form-group">
@@ -498,6 +509,7 @@
           </div>
         </div>
         <input type="password" id="key-gemini" class="form-input" placeholder="GEMINI_API_KEY" onchange="saveKey('gemini','GEMINI_API_KEY','key-gemini')">
+        <a href="https://aistudio.google.com" target="_blank" style="font-size:0.75rem;color:var(--muted)">Get key →</a>
       </div>
 
       <div class="form-group">
@@ -509,6 +521,7 @@
           </div>
         </div>
         <input type="password" id="key-openai" class="form-input" placeholder="OPENAI_API_KEY" onchange="saveKey('openai','OPENAI_API_KEY','key-openai')">
+        <a href="https://platform.openai.com" target="_blank" style="font-size:0.75rem;color:var(--muted)">Get key →</a>
       </div>
 
       <div class="form-group">
@@ -520,6 +533,80 @@
           </div>
         </div>
         <input type="password" id="key-grok" class="form-input" placeholder="XAI_API_KEY" onchange="saveKey('grok','XAI_API_KEY','key-grok')">
+        <a href="https://console.x.ai" target="_blank" style="font-size:0.75rem;color:var(--muted)">Get key →</a>
+      </div>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 8px 0;">
+
+      <div class="form-group">
+        <label class="form-label">Connectors</label>
+        <div class="connector-grid">
+          <!-- MCP OAuth -->
+          <div class="connector-card">
+            <span class="connector-card-icon">🔌</span>
+            <div class="connector-card-info">
+              <div class="connector-card-title">MCP Server</div>
+              <div class="connector-card-meta">OAuth 2.0 · Port 8772</div>
+            </div>
+            <span class="connector-card-status pending" id="mcp-status">Disconnected</span>
+            <button class="connector-btn primary" id="mcp-btn" onclick="connectMcp()">Connect</button>
+          </div>
+
+          <!-- Web Search -->
+          <div class="connector-card">
+            <span class="connector-card-icon">🔍</span>
+            <div class="connector-card-info">
+              <div class="connector-card-title">Web Search</div>
+              <div class="connector-card-meta">DuckDuckGo · No key needed</div>
+            </div>
+            <span class="connector-card-status ok" id="search-status">Ready</span>
+            <button class="connector-btn" onclick="testWebSearch()">Test</button>
+          </div>
+
+          <!-- Claude -->
+          <div class="connector-card">
+            <span class="connector-card-icon">✦</span>
+            <div class="connector-card-info">
+              <div class="connector-card-title">Claude</div>
+              <div class="connector-card-meta">API Key</div>
+            </div>
+            <span class="connector-card-status err" id="conn-status-claude">No key</span>
+            <button class="connector-btn" onclick="focusKey('key-claude')">Add Key</button>
+          </div>
+
+          <!-- Gemini -->
+          <div class="connector-card">
+            <span class="connector-card-icon">🌐</span>
+            <div class="connector-card-info">
+              <div class="connector-card-title">Gemini</div>
+              <div class="connector-card-meta">API Key</div>
+            </div>
+            <span class="connector-card-status err" id="conn-status-gemini">No key</span>
+            <button class="connector-btn" onclick="focusKey('key-gemini')">Add Key</button>
+          </div>
+
+          <!-- ChatGPT -->
+          <div class="connector-card">
+            <span class="connector-card-icon">◈</span>
+            <div class="connector-card-info">
+              <div class="connector-card-title">ChatGPT</div>
+              <div class="connector-card-meta">API Key</div>
+            </div>
+            <span class="connector-card-status err" id="conn-status-openai">No key</span>
+            <button class="connector-btn" onclick="focusKey('key-openai')">Add Key</button>
+          </div>
+
+          <!-- Grok -->
+          <div class="connector-card">
+            <span class="connector-card-icon">𝕏</span>
+            <div class="connector-card-info">
+              <div class="connector-card-title">Grok</div>
+              <div class="connector-card-meta">API Key</div>
+            </div>
+            <span class="connector-card-status err" id="conn-status-grok">No key</span>
+            <button class="connector-btn" onclick="focusKey('key-grok')">Add Key</button>
+          </div>
+        </div>
       </div>
 
       <hr style="border: none; border-top: 1px solid var(--border); margin: 8px 0;">
@@ -533,50 +620,163 @@
 </div>
 
 <script src="js/dream-chat.js"></script>
+<script src="/js/theme-toggle.js"></script>
 <script>
-  // Modern theme toggle with global persistence
-  function toggleTheme() {
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-  }
-  function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('lantern-theme', theme);
-    // Persist to server via API if available (global cross-device setting)
-    fetch('/api/ui/theme', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ theme })
-    }).catch(() => {}); // silent fail if API not available
-    updateThemeIcon();
-  }
-  function updateThemeIcon() {
-    const btn = document.getElementById('theme-toggle');
-    btn.textContent = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? '☀️' : '🌙';
-  }
-  // Initialize theme from localStorage or system preference
-  function initTheme() {
-    const saved = localStorage.getItem('lantern-theme');
-    if (saved) {
-      document.documentElement.setAttribute('data-theme', saved);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem('lantern-theme', 'light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('lantern-theme', 'dark');
-    }
-    updateThemeIcon();
-  }
-  initTheme();
-
   // ── Modal controls ─────────────────────────────────────────────────
   function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
   function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-  function openLogDream() { alert('Dream logging coming soon'); closeSettings(); }
+  function openLogDream() { alert('Log entry coming soon'); closeSettings(); }
+
+  // ── Cube delta writer ────────────────────────────────────────────
+  async function writeCubeDelta(eventType, symbols, payloadRef) {
+    try {
+      await fetch('/api/cubes/alex/delta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_surface: 'journal',
+          event_type: eventType,
+          symbols: symbols || [],
+          payload_ref: payloadRef || '',
+        }),
+      });
+    } catch (e) { /* silent — cube is best-effort */ }
+  }
   function saveKey() {}
+
+  // ── Connector sidecar ────────────────────────────────────────────
+  function focusKey(inputId) {
+    const el = document.getElementById(inputId);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); }
+  }
+
+  async function updateConnectorStatuses() {
+    // Check MCP health
+    try {
+      const r = await fetch('http://127.0.0.1:8772/health', { method: 'GET', mode: 'cors', cache: 'no-store' });
+      const mcpStatus = document.getElementById('mcp-status');
+      const mcpBtn = document.getElementById('mcp-btn');
+      if (r.ok) {
+        const data = await r.json();
+        mcpStatus.textContent = 'Connected';
+        mcpStatus.className = 'connector-card-status ok';
+        mcpBtn.textContent = 'Disconnect';
+        mcpBtn.onclick = disconnectMcp;
+        mcpBtn.classList.remove('primary');
+      } else {
+        throw new Error('HTTP ' + r.status);
+      }
+    } catch (e) {
+      const mcpStatus = document.getElementById('mcp-status');
+      const mcpBtn = document.getElementById('mcp-btn');
+      mcpStatus.textContent = 'Disconnected';
+      mcpStatus.className = 'connector-card-status pending';
+      mcpBtn.textContent = 'Connect';
+      mcpBtn.onclick = connectMcp;
+      mcpBtn.classList.add('primary');
+    }
+
+    // Check API key statuses from localStorage / env
+    const providers = [
+      { key: 'ANTHROPIC_API_KEY', id: 'claude', label: 'Claude' },
+      { key: 'GEMINI_API_KEY', id: 'gemini', label: 'Gemini' },
+      { key: 'OPENAI_API_KEY', id: 'openai', label: 'ChatGPT' },
+      { key: 'XAI_API_KEY', id: 'grok', label: 'Grok' },
+    ];
+    for (const p of providers) {
+      const hasKey = !!localStorage.getItem(p.key);
+      const badge = document.getElementById('conn-status-' + p.id);
+      const input = document.getElementById('key-' + p.id);
+      if (badge) {
+        if (hasKey || (input && input.value.length > 0)) {
+          badge.textContent = 'Ready';
+          badge.className = 'connector-card-status ok';
+        } else {
+          badge.textContent = 'No key';
+          badge.className = 'connector-card-status err';
+        }
+      }
+    }
+  }
+
+  async function connectMcp() {
+    const mcpStatus = document.getElementById('mcp-status');
+    const mcpBtn = document.getElementById('mcp-btn');
+    mcpStatus.textContent = 'Connecting…';
+    mcpStatus.className = 'connector-card-status pending';
+    mcpBtn.disabled = true;
+
+    try {
+      // Step 1: Health check
+      const health = await fetch('http://127.0.0.1:8772/health', { method: 'GET', mode: 'cors', cache: 'no-store' });
+      if (!health.ok) throw new Error('MCP server not responding');
+
+      // Step 2: OAuth registration (open in popup)
+      const width = 500, height = 600;
+      const left = (screen.width - width) / 2;
+      const top = (screen.height - height) / 2;
+      const popup = window.open(
+        'http://127.0.0.1:8772/oauth/register?client_name=LanternOSJournal&redirect_uri=http://127.0.0.1:4177/oauth/callback',
+        'mcpOAuth',
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+      );
+
+      // Poll for popup close
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          updateConnectorStatuses();
+          mcpBtn.disabled = false;
+        }
+      }, 500);
+    } catch (e) {
+      mcpStatus.textContent = 'Error';
+      mcpStatus.className = 'connector-card-status err';
+      mcpBtn.disabled = false;
+      alert('MCP connection failed: ' + e.message);
+    }
+  }
+
+  function disconnectMcp() {
+    localStorage.removeItem('MCP_OAUTH_TOKEN');
+    updateConnectorStatuses();
+  }
+
+  async function testWebSearch() {
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = 'Testing…';
+    btn.disabled = true;
+    try {
+      const r = await fetch('http://127.0.0.1:8772/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 1,
+          method: 'tools/call',
+          params: { name: 'web_search', arguments: { query: 'Lantern OS', max_results: 3 } }
+        }),
+      });
+      const data = await r.json();
+      if (data.result && data.result.success) {
+        alert('Web search works! Found ' + data.result.result_count + ' results.\nTop: ' + (data.result.results[0]?.title || '?'));
+      } else {
+        alert('Web search returned: ' + (data.result?.error || 'unknown error'));
+      }
+    } catch (e) {
+      alert('Web search test failed: ' + e.message);
+    } finally {
+      btn.textContent = original;
+      btn.disabled = false;
+    }
+  }
+
+  // Update connector badges when settings opens
+  const _origOpenSettings = openSettings;
+  openSettings = function() {
+    _origOpenSettings();
+    updateConnectorStatuses();
+  };
 
   // ── Conversation state ─────────────────────────────────────────────
   let isSending = false;
@@ -584,11 +784,11 @@
 
   // Fallback messages — shown ONLY when all providers fail (never as a normal reply)
   const FALLBACKS = [
-    "The lantern flickers. No model responded — is Ollama running? (ollama serve)",
-    "Dream interpreter offline. Add an API key in Settings, or start your local models.",
-    "All paths are quiet right now. Try again in a moment, or check Settings.",
-    "The thread went dark. Ollama may be starting up — give it a moment and retry.",
-    "No provider answered. Check Settings for API keys, or run: ollama pull lantern-csf-dream",
+    "No AI providers are set up. Add an API key in Settings (⚙) to get started.",
+    "All providers offline. Check Settings to add an API key or start a local model.",
+    "Connection quiet. Try again in a moment, or check Settings for API keys.",
+    "No provider answered. Open Settings (⚙) to configure Gemini, Claude, or OpenAI.",
+    "AI unavailable. Add a provider key in Settings, or run: ollama serve for local mode.",
   ];
 
   // ── Quick-start chip fill ──────────────────────────────────────────
@@ -653,11 +853,13 @@
     input.value = '';
     input.style.height = 'auto';
     history.push({ role: 'user', text });
+    writeCubeDelta('chat_message', [], 'conversation:' + Date.now());
 
     const { msg, bubble, cursor } = createAgentBubble(false);
     const container = document.getElementById('messages');
 
     let fullText = '';
+    let serverErrorText = '';
     let didError = false;
 
     try {
@@ -699,8 +901,9 @@
               bubble.appendChild(cursor);
               container.scrollTop = container.scrollHeight;
             } else if (evt.type === 'error') {
-              // Server reported an error — may be followed by local fallback tokens, so don't stop
+              // Server reported an error — capture its text; may be followed by tokens so don't stop
               didError = true;
+              if (evt.text) serverErrorText = evt.text;
               if (!fullText) {
                 bubble.style.color = 'var(--muted)';
               }
@@ -718,8 +921,8 @@
     cursor.remove();
 
     if (!fullText) {
-      // All providers failed — show random fallback as an error note
-      fullText = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+      // Use server error text if available, otherwise random fallback
+      fullText = serverErrorText || FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
       msg.classList.add('error');
       bubble.style.color = 'var(--muted)';
       bubble.style.fontStyle = 'italic';
@@ -740,6 +943,64 @@
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
   });
+
+  // ── Observer side panel ───────────────────────────────────────────
+  function toggleObserver() {
+    const panel = document.getElementById('observer-panel');
+    const btn = document.getElementById('observer-toggle-btn');
+    const collapsed = panel.classList.toggle('collapsed');
+    btn.classList.toggle('active', !collapsed);
+    if (!collapsed) refreshObserver();
+  }
+
+  function refreshObserver() {
+    fetch('/api/csf/stats').then(r => r.ok ? r.json() : null).then(data => {
+      if (!data) return;
+      // Recurring symbols
+      const symList = document.getElementById('obs-symbols');
+      if (data.top10 && data.top10.length > 0) {
+        symList.innerHTML = data.top10.slice(0, 8).map(s =>
+          `<span class="obs-symbol-chip${s.count >= 3 ? ' hot' : ''}">${s.token} ×${s.count}</span>`
+        ).join('');
+      } else {
+        symList.textContent = 'none yet';
+      }
+      document.getElementById('obs-dilation').textContent =
+        data.delta_count ? `${data.delta_count} entries` : '—';
+    }).catch(() => {});
+
+    fetch('/api/csf/deltas?limit=5').then(r => r.ok ? r.json() : null).then(data => {
+      if (!data || !data.length) return;
+      const last = data[data.length - 1];
+      // Mood arc
+      const moods = data.filter(d => d.mood_abs != null).map(d => d.mood_abs);
+      if (moods.length >= 2) {
+        const first = moods[0], latest = moods[moods.length - 1];
+        const diff = latest - first;
+        const label = Math.abs(diff) < 0.1 ? 'stable' : diff > 0 ? '↑ rising' : '↓ falling';
+        document.getElementById('obs-mood-arc').textContent = `${label} (${first.toFixed(1)} → ${latest.toFixed(1)})`;
+        document.getElementById('obs-mood-fill').style.width = `${Math.round(latest * 100)}%`;
+      }
+      // Last delta
+      const deltaLines = [];
+      if (last.symbols_added?.length) deltaLines.push(`+symbols: ${last.symbols_added.slice(0,3).join(', ')}`);
+      if (last.tags_added?.length) deltaLines.push(`+tags: ${last.tags_added.slice(0,3).join(', ')}`);
+      if (last.mood_delta != null && Math.abs(last.mood_delta) >= 0.05)
+        deltaLines.push(`mood ${last.mood_delta > 0 ? '+' : ''}${last.mood_delta}`);
+      document.getElementById('obs-last-delta').textContent = deltaLines.join(' · ') || 'no change';
+      // Convergence
+      if (last.convergence != null) {
+        const pct = Math.round(last.convergence * 100);
+        document.getElementById('obs-convergence').textContent = `${pct}%`;
+        document.getElementById('obs-conv-fill').style.width = `${pct}%`;
+      }
+    }).catch(() => {});
+  }
+
+  // Refresh observer every 30s if open
+  setInterval(() => {
+    if (!document.getElementById('observer-panel').classList.contains('collapsed')) refreshObserver();
+  }, 30000);
 </script>
 <script src="js/convergance-sync.js"></script>
 </body>

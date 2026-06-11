@@ -74,11 +74,15 @@ const routes = [
   require("./routes/rag"),
   require("./routes/operator"),
   require("./routes/files"),
+  require("./routes/files-upload"),
   require("./routes/dreamer"),
   require("./routes/dream"),
   require("./routes/keystone"),
   require("./routes/image"),
   require("./routes/flourishing"),
+  require("./routes/claims"),
+  require("./routes/cubes"),
+  require("./routes/csf"),
   require("./routes/surfaces"),
 ];
 
@@ -87,6 +91,9 @@ async function route(req, res) {
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "strict-origin-when-cross-origin",

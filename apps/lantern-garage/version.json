@@ -1,7 +1,7 @@
 {
-  "version": "1.2.2",
-  "buildId": "1.2.2+2026-06-08.013652",
-  "timestamp": "2026-06-08T01:36:52.703Z",
-  "branch": "claude/loving-bhaskara-8e0bfc",
-  "commit": "d8b05e3"
+  "version": "1.2.5",
+  "buildId": "1.2.5+2026-06-10.235834",
+  "timestamp": "2026-06-10T23:58:34.191Z",
+  "branch": "master",
+  "commit": "1441d9e"
 }
