@@ -124,6 +124,17 @@
     .entry-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
     .entry-tag { font-size: 0.7rem; background: var(--accent-dim); color: var(--accent); padding: 2px 8px; border-radius: 10px; font-weight: 500; }
 
+    .file-input-wrapper { position: relative; }
+    .file-input-wrapper input[type="file"] { display: none; }
+    .file-drop-area {
+      border: 2px dashed var(--border); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer;
+      transition: all 0.15s; background: var(--bg);
+    }
+    .file-drop-area:hover { border-color: var(--accent); background: var(--surface); }
+    .file-drop-area.dragover { border-color: var(--accent); background: var(--accent-dim); }
+    .file-drop-area p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+    .file-name { margin-top: 8px; font-size: 0.85rem; color: var(--accent); font-weight: 500; }
+
     .site-footer { margin-top: 60px; padding: 20px 0; border-top: 1px solid var(--border); text-align: center; color: var(--muted); font-size: 0.85rem; }
     .site-footer a { color: var(--muted); text-decoration: none; }
     .site-footer a:hover { color: var(--text); }
@@ -190,6 +201,18 @@
           <button type="button" id="add-tag-btn">Add Tag</button>
         </div>
         <div class="tag-list" id="tag-list"></div>
+      </div>
+
+      <!-- File Upload -->
+      <div class="form-group">
+        <label>Attach Media (optional)</label>
+        <div class="file-input-wrapper">
+          <div class="file-drop-area" id="file-drop">
+            <p>📁 Drop a video or file here, or click to browse</p>
+            <div class="file-name" id="file-name"></div>
+          </div>
+          <input type="file" id="file-input" accept="video/*,audio/*,.mkv,.mp4,.mov,.avi,.flv,.webm">
+        </div>
       </div>
 
       <!-- Actions -->
@@ -260,11 +283,43 @@ document.addEventListener('DOMContentLoaded', () => {
     if (type === 'success') setTimeout(() => { el.className = 'notice'; }, 3500);
   }
 
+  // File upload handling
+  const fileInput = document.getElementById('file-input');
+  const fileDrop = document.getElementById('file-drop');
+  const fileName = document.getElementById('file-name');
+
+  fileDrop.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      fileName.textContent = '✓ ' + fileInput.files[0].name;
+    }
+  });
+
+  fileDrop.addEventListener('dragover', e => {
+    e.preventDefault();
+    fileDrop.classList.add('dragover');
+  });
+
+  fileDrop.addEventListener('dragleave', () => {
+    fileDrop.classList.remove('dragover');
+  });
+
+  fileDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    fileDrop.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      fileInput.files = e.dataTransfer.files;
+      fileName.textContent = '✓ ' + e.dataTransfer.files[0].name;
+    }
+  });
+
   // Save entry
   document.getElementById('save-btn').addEventListener('click', async () => {
     const title = document.getElementById('title').value.trim();
     const text = document.getElementById('text').value.trim();
     const project = document.getElementById('project').value.trim();
+    const file = fileInput.files[0];
 
     if (!title && !text) { showNotice('Add a title or description.', 'error'); return; }
 
@@ -273,24 +328,27 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.textContent = 'Saving...';
 
     try {
-      const res = await fetch('/api/dreamer', {
+      const formData = new FormData();
+      formData.append('user', 'dreamer');
+      formData.append('kind', selectedType);
+      formData.append('name', title || text.slice(0, 80));
+      formData.append('text', [text, project ? `Project: ${project}` : '', file ? `File: ${file.name}` : ''].filter(Boolean).join('\n').trim());
+      formData.append('tags', JSON.stringify(tags));
+      if (file) formData.append('file', file);
+
+      const res = await fetch('/api/dreamer/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user: 'dreamer',
-          kind: selectedType,
-          name: title || text.slice(0, 80),
-          text: [text, project ? `Project: ${project}` : ''].filter(Boolean).join('\n').trim(),
-          tags,
-        }),
+        body: formData,
       });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.error || 'Save failed');
 
-      showNotice('✓ Entry saved to your notebook.', 'success');
+      showNotice('✓ Entry saved' + (file ? ' with file attached' : '') + '.', 'success');
       document.getElementById('title').value = '';
       document.getElementById('text').value = '';
       document.getElementById('project').value = '';
+      fileInput.value = '';
+      fileName.textContent = '';
       tags.length = 0;
       renderTags();
       loadRecent();
