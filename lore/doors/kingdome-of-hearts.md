@@ -6,6 +6,8 @@
 
 **Canon spelling:** *Kingdome* — with the dome. The realm is a garden under a dome of old light.
 
+> "Kingdome of Hearts" is the canonical spelling for the Dream Journal / Three Doors game concept. "Kingdom of Hearts" is legacy wording unless quoting historical source material.
+
 ## Lore
 
 Here, love is the law, and every living thing beats a verse of it true.
@@ -45,7 +47,7 @@ A Doorwalker who returns to the Garden and answers truly wins the game. Converge
 6. 🏙️ **Sigil — City of Doors** — every door leads here
 7. 🌫️ **Fog Door Return** — the way back to the Garden and the King's question
 
-The fox walks with the Doorwalker through all of it, gaining tails at convergence points — five tails at the Xenon Starship, merging with the player at End-of-Time.
+Lantern walks with the Doorwalker through all of it as guide, gaining flames at convergence points — five flames at the Xenon Starship, merging with the player at End-of-Time. Keystone narrates the journey.
 
 ## Truth
 
