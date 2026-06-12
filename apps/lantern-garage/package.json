@@ -19,7 +19,8 @@
     "test:cache": "node ../../tests/test_provider_cache.js",
     "test:ui": "npx playwright test ../../tests/test_dream_journal_ui.spec.js",
     "test:ui:headed": "npx playwright test ../../tests/test_dream_journal_ui.spec.js --headed",
-    "test:all": "node ../../tests/run-dream-journal-tests.js api chat multiturn keystone cache ui",
+    "test:three-doors": "node ../../tests/test_three_doors_integration.spec.js",
+    "test:all": "node ../../tests/run-dream-journal-tests.js api chat multiturn keystone cache ui && npm run test:three-doors",
     "dev": "node --watch server.js",
     "start:master": "git -C ../.. pull origin master && python3 ../../integrations/human-flourishing-frameworks/export_snapshot.py || true && node --watch server.js"
   },
@@ -27,7 +28,11 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.102.0"
+    "@anthropic-ai/sdk": "^0.102.0",
+    "exif-parser": "^0.1.12",
+    "pdf-parse": "^1.1.1",
+    "sharp": "^0.35.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "playwright": "^1.60.0"
